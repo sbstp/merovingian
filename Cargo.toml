@@ -1,0 +1,16 @@
+[package]
+name = "flicks2"
+version = "0.1.0"
+authors = ["Simon Bernier St-Pierre <sbernierstpierre@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+bincode = "1"
+csv = "1"
+flate2 = "1"
+hashbrown = { version = "0.1", features = ["serde"] }
+reqwest = "0.9"
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
+strsim = "0.8"

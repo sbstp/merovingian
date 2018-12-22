@@ -1,0 +1,18 @@
+mod error;
+mod ffprobe;
+mod index;
+mod string;
+mod utils;
+
+use std::io;
+use std::path::Path;
+
+fn main() {
+    let index = index::Index::load_or_create_index(".index").unwrap();
+    //println!("{:#?}", &index.lookup("Logan's run", None)[..3]);
+    loop {
+        let mut line = String::new();
+        io::stdin().read_line(&mut line).unwrap();
+        println!("{:#?}", &index.lookup(&line.trim(), None)[..3]);
+    }
+}
