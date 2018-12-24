@@ -98,7 +98,7 @@ impl fmt::Display for FixedString {
 
 impl fmt::Debug for FixedString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "FlatString(\"{}\")", self.as_str())
+        write!(f, "FixedString(\"{}\")", self.as_str())
     }
 }
 

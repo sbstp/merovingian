@@ -10,9 +10,9 @@ use flate2::write::GzEncoder;
 use hashbrown::{HashMap, HashSet};
 use serde_derive::{Deserialize, Serialize};
 
+use crate::collections::{counter::Counter, fixed_string::FixedString};
 use crate::error::Result;
-use crate::string::FixedString;
-use crate::utils::{Counter, NonNan};
+use crate::utils::NonNan;
 
 const MIN_VOTES: u32 = 25;
 const SRC_FILE_BASICS: &str = "title.basics.tsv.gz";
