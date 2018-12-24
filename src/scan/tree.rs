@@ -1,7 +1,20 @@
 use std::collections::VecDeque;
+use std::num::NonZeroUsize;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct NodeId(usize);
+pub struct NodeId(NonZeroUsize);
+
+impl NodeId {
+
+    fn new(id: usize) -> NodeId {
+        NodeId(NonZeroUsize::new(id + 1).expect("node id with value of 0"))
+    }
+
+    #[inline]
+    fn get(&self) -> usize {
+        self.0.get() - 1
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 struct Node<T> {
@@ -21,16 +34,17 @@ pub struct Tree<T> {
 impl<T> Tree<T> {
     #[inline]
     fn next_node_id(&self) -> NodeId {
-        NodeId(self.nodes.len())
+        NodeId::new(self.nodes.len())
     }
 
+    #[inline]
     fn select(&self, node: NodeId) -> &Node<T> {
-        &self.nodes[node.0]
+        &self.nodes[node.get()]
     }
 
     #[inline]
     fn select_mut(&mut self, node: NodeId) -> &mut Node<T> {
-        &mut self.nodes[node.0]
+        &mut self.nodes[node.get()]
     }
 
     pub fn new() -> Tree<T> {
@@ -38,11 +52,11 @@ impl<T> Tree<T> {
     }
 
     pub fn data(&self, node: NodeId) -> &T {
-        &self.nodes[node.0].data
+        &self.select(node).data
     }
 
     pub fn data_mut(&mut self, node: NodeId) -> &mut T {
-        &mut self.nodes[node.0].data
+        &mut self.select_mut(node).data
     }
 
     pub fn insert_root(&mut self, data: T) -> NodeId {
@@ -96,7 +110,7 @@ impl<T> Tree<T> {
     }
 
     pub fn parent(&self, node: NodeId) -> Option<NodeId> {
-        self.nodes[node.0].parent
+        self.select(node).parent
     }
 
     pub fn children(&self, node: NodeId) -> ChildrenIter<T> {
