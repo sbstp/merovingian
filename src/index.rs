@@ -7,7 +7,7 @@ use csv;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use hashbrown::{HashMap, HashSet};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::collections::{counter::Counter, fixed_string::FixedString};
 use crate::error::Result;

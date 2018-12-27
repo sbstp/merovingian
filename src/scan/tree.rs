@@ -1,11 +1,10 @@
 use std::collections::VecDeque;
 use std::num::NonZeroUsize;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct NodeId(NonZeroUsize);
 
 impl NodeId {
-
     fn new(id: usize) -> NodeId {
         NodeId(NonZeroUsize::new(id + 1).expect("node id with value of 0"))
     }

@@ -1,7 +1,10 @@
+use std::cmp::{Eq, PartialEq};
 use std::fs::Metadata;
+use std::hash::{Hash, Hasher};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::fmt;
 
 use super::tree::{self, NodeId, Tree};
 
@@ -10,9 +13,30 @@ struct FileNode {
     metadata: Metadata,
 }
 
+#[derive(Clone)]
 pub struct File {
     tree: Rc<Tree<FileNode>>,
     node: NodeId,
+}
+
+impl PartialEq for File {
+    fn eq(&self, other: &File) -> bool {
+        self.node == other.node
+    }
+}
+
+impl Eq for File {}
+
+impl Hash for File {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.node.hash(state);
+    }
+}
+
+impl fmt::Debug for File {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "File[{}]", self.path().display())
+    }
 }
 
 impl File {
@@ -129,17 +153,17 @@ impl Iterator for DescendantsIter<'_> {
     }
 }
 
-pub fn walk(path: impl AsRef<Path>) -> io::Result<File> {
+pub fn walk(root: impl AsRef<Path>) -> io::Result<File> {
     let mut tree = Tree::new();
 
-    match walk_rec(&mut tree, path.as_ref().to_owned(), None)? {
+    match walk_rec(&mut tree, root.as_ref().to_owned(), None)? {
         Some(node) => Ok(File {
             tree: Rc::new(tree),
             node,
         }),
         None => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "invalid root folder",
+            "invalid root path",
         )),
     }
 }

@@ -18,8 +18,6 @@ fn main() {
     //     io::stdin().read_line(&mut line).unwrap();
     //     println!("{:#?}", &index.lookup(&line.trim(), None)[..3]);
     // }
-    let root = scan::vfs::walk("src").unwrap();
-    for item in root.descendants() {
-        println!("{}", item.path().display());
-    }
+    let root = scan::vfs::walk("/home/simon/tank/downloads").unwrap();
+    scan::heuristics::scan(&root);
 }

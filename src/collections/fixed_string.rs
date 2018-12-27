@@ -4,7 +4,7 @@ use std::hash;
 use std::ops;
 use std::str;
 
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 const SIZE: usize = 15;
 
