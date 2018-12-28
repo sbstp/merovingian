@@ -1,8 +1,8 @@
 use hashbrown::HashSet;
 use lazy_static::lazy_static;
 
-use crate::index::Entry;
-use crate::scan::vfs::File;
+use super::index::Entry;
+use super::vfs::File;
 
 lazy_static! {
     static ref VIDEO_EXT: Vec<&'static str> =
@@ -59,7 +59,7 @@ fn parse_title(stem: &str) -> Option<(String, i32)> {
     Some((title, year))
 }
 
-pub fn scan(root: &File) {
+pub fn scan(root: &File) -> Vec<ScanResult> {
     let mut ignore: HashSet<File> = HashSet::new();
 
     let mut movies: Vec<ScanResult> = Vec::new();
@@ -93,17 +93,5 @@ pub fn scan(root: &File) {
         }
     }
 
-    movies.retain(|sr| {
-        let x = ignore.contains(&sr.movie);
-        if x {
-            println!("-: {:#?}", sr);
-        }
-        !x
-    });
-
-    println!("\n---------------------------\n");
-
-    for sr in movies {
-        println!(">: {:#?}", sr);
-    }
+    movies
 }

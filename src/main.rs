@@ -1,14 +1,11 @@
 #![allow(dead_code)]
 
-mod collections;
-mod error;
-mod ffprobe;
-mod index;
-mod scan;
-mod utils;
+mod flicks;
 
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use crate::flicks::*;
 
 fn main() {
     // let index = index::Index::load_or_create_index(".index").unwrap();
@@ -18,6 +15,16 @@ fn main() {
     //     io::stdin().read_line(&mut line).unwrap();
     //     println!("{:#?}", &index.lookup(&line.trim(), None)[..3]);
     // }
-    let root = scan::vfs::walk("/home/simon/tank/downloads").unwrap();
-    scan::heuristics::scan(&root);
+
+    // let root = vfs::walk("/home/simon/tank/downloads").unwrap();
+    // let movies = scan::scan(&root);
+
+    let mut manager = transfer::Manager::new();
+    manager.add_transfer("a.txt", "b.txt");
+
+    while manager.has_work() {
+        manager.tick();
+    }
+
+    println!("{:#?}", manager);
 }

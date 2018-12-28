@@ -4,7 +4,7 @@ use std::process::Command;
 
 use serde::Deserialize;
 
-use crate::error::{Error, Result};
+use super::error::{Error, Result};
 
 #[derive(Debug, Deserialize)]
 pub struct MediaInfo {
