@@ -1,8 +1,9 @@
 pub mod collections;
-pub mod database;
 pub mod error;
 pub mod ffprobe;
+pub mod fingerprint;
 pub mod index;
+pub mod library;
 pub mod scan;
 pub mod transfer;
 pub mod tree;

@@ -1,10 +1,10 @@
 use std::cmp::{Eq, PartialEq};
+use std::fmt;
 use std::fs::Metadata;
 use std::hash::{Hash, Hasher};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::fmt;
 
 use super::tree::{self, NodeId, Tree};
 
@@ -48,7 +48,7 @@ impl File {
         &self.data().path
     }
 
-    pub fn file(&self) -> Option<&str> {
+    pub fn name(&self) -> Option<&str> {
         self.path().file_name().and_then(|s| s.to_str())
     }
 
@@ -161,28 +161,18 @@ pub fn walk(root: impl AsRef<Path>) -> io::Result<File> {
             tree: Rc::new(tree),
             node,
         }),
-        None => Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "invalid root path",
-        )),
+        None => Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid root path")),
     }
 }
 
-fn walk_rec(
-    tree: &mut Tree<FileNode>,
-    path: PathBuf,
-    parent: Option<NodeId>,
-) -> io::Result<Option<NodeId>> {
+fn walk_rec(tree: &mut Tree<FileNode>, path: PathBuf, parent: Option<NodeId>) -> io::Result<Option<NodeId>> {
     let metadata = path.metadata()?;
 
     if !metadata.is_dir() && !metadata.is_file() {
         return Ok(None);
     }
 
-    let file_node = FileNode {
-        path: path,
-        metadata,
-    };
+    let file_node = FileNode { path: path, metadata };
 
     let node = match parent {
         Some(parent) => tree.insert_below(parent, file_node),

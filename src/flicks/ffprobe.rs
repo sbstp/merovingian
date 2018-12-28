@@ -21,9 +21,7 @@ pub fn scan(path: impl AsRef<Path>) -> Result<MediaInfo> {
         .output()?;
 
     if !output.status.success() {
-        return Err(Error::SpawnError(
-            String::from_utf8_lossy(&output.stderr).into_owned(),
-        ));
+        return Err(Error::SpawnError(String::from_utf8_lossy(&output.stderr).into_owned()));
     }
 
     let probe: Probe = serde_json::from_reader(&output.stdout[..])?;
@@ -39,11 +37,7 @@ pub fn scan(path: impl AsRef<Path>) -> Result<MediaInfo> {
         }
     }
 
-    Ok(MediaInfo {
-        video,
-        audio,
-        subtitle,
-    })
+    Ok(MediaInfo { video, audio, subtitle })
 }
 
 #[derive(Debug, Deserialize)]

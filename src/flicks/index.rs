@@ -82,13 +82,7 @@ fn build_entries_table(data_dir_path: &Path) -> Result<HashMap<u32, Entry>> {
         let runtime = parse_none(&record[5]);
         let vote_count = votes_table.get(&title_id);
 
-        match (
-            is_valid_type(title_type),
-            adult,
-            start_year,
-            runtime,
-            vote_count,
-        ) {
+        match (is_valid_type(title_type), adult, start_year, runtime, vote_count) {
             (true, "0", Some(start_year), Some(runtime), Some(vote_count)) => {
                 let entry = Entry {
                     title_id,
@@ -178,11 +172,7 @@ fn download_file(client: &reqwest::Client, url: &str, dest: impl AsRef<Path>) ->
     Ok(())
 }
 
-fn download_file_if_missing(
-    client: &reqwest::Client,
-    url: &str,
-    dest: impl AsRef<Path>,
-) -> Result<()> {
+fn download_file_if_missing(client: &reqwest::Client, url: &str, dest: impl AsRef<Path>) -> Result<()> {
     if !dest.as_ref().exists() {
         download_file(client, url, dest)?;
     }
@@ -241,10 +231,7 @@ impl Index {
 
         index.entries.shrink_to_fit();
         index.reverse.shrink_to_fit();
-        index
-            .reverse
-            .values_mut()
-            .for_each(|bucket| bucket.shrink_to_fit());
+        index.reverse.values_mut().for_each(|bucket| bucket.shrink_to_fit());
 
         Ok(index)
     }
@@ -300,9 +287,7 @@ impl Index {
         if let Some(max_votes) = entries.iter().map(|entry| entry.vote_count).max() {
             let scoring_func = |entry: &Entry| -> NonNan {
                 let mut score = match &entry.original_title {
-                    None => {
-                        strsim::normalized_levenshtein(&entry.primary_title.to_lowercase(), &text)
-                    }
+                    None => strsim::normalized_levenshtein(&entry.primary_title.to_lowercase(), &text),
                     Some(original_title) => f64::max(
                         strsim::normalized_levenshtein(&entry.primary_title.to_lowercase(), &text),
                         strsim::normalized_levenshtein(&original_title.to_lowercase(), &text),

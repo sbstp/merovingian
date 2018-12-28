@@ -229,14 +229,8 @@ mod tests {
         let child2_1 = t.insert_below(child2, "child2-1");
         let child3 = t.insert_below(root, "child3");
 
-        assert_eq!(
-            t.children(root).collect::<Vec<_>>(),
-            vec![child1, child2, child3]
-        );
-        assert_eq!(
-            t.children(child1).collect::<Vec<_>>(),
-            vec![child1_1, child1_2]
-        );
+        assert_eq!(t.children(root).collect::<Vec<_>>(), vec![child1, child2, child3]);
+        assert_eq!(t.children(child1).collect::<Vec<_>>(), vec![child1_1, child1_2]);
 
         assert_eq!(t.children(child1_1).collect::<Vec<_>>(), vec![]);
     }

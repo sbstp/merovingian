@@ -16,9 +16,7 @@ where
     K: Hash + Eq,
 {
     pub fn new() -> Counter<K> {
-        Counter {
-            inner: HashMap::new(),
-        }
+        Counter { inner: HashMap::new() }
     }
 
     pub fn len(&self) -> usize {

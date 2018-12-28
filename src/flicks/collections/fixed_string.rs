@@ -31,10 +31,7 @@ impl FixedString {
 
         buf[..len].copy_from_slice(&source.as_bytes()[..len]);
 
-        FixedString {
-            len: len as u8,
-            buf,
-        }
+        FixedString { len: len as u8, buf }
     }
 
     #[inline]
