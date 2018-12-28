@@ -320,4 +320,8 @@ impl Index {
 
         entries
     }
+
+    pub fn best_match(&self, text: &str, year: Option<i32>) -> Option<&Entry> {
+        self.lookup(text, year).into_iter().next()
+    }
 }

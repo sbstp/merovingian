@@ -1,7 +1,7 @@
 use hashbrown::HashSet;
 use lazy_static::lazy_static;
 
-use super::index::Entry;
+use super::index::{Entry, Index};
 use super::vfs::File;
 
 lazy_static! {
@@ -11,10 +11,11 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub struct ScanResult {
+pub struct ScanResult<'i> {
     pub movie: File,
     pub year: i32,
     pub title: String,
+    pub entry: Option<&'i Entry>,
 }
 
 fn is_video(file: &File) -> bool {
@@ -59,10 +60,9 @@ fn parse_title(stem: &str) -> Option<(String, i32)> {
     Some((title, year))
 }
 
-pub fn scan(root: &File) -> Vec<ScanResult> {
-    let mut ignore: HashSet<File> = HashSet::new();
-
-    let mut movies: Vec<ScanResult> = Vec::new();
+pub fn scan<'i>(root: &File, index: &'i Index) -> Vec<ScanResult<'i>> {
+    let mut ignored: HashSet<File> = HashSet::new();
+    let mut results: Vec<ScanResult> = Vec::new();
 
     for child in root.descendants() {
         match (is_video(&child), child.stem()) {
@@ -76,14 +76,15 @@ pub fn scan(root: &File) -> Vec<ScanResult> {
 
                             for peer in parent.descendants() {
                                 if peer.metadata().len() as f64 / size <= 0.40 {
-                                    ignore.insert(peer);
+                                    ignored.insert(peer);
                                 }
                             }
                         }
                     }
 
-                    movies.push(ScanResult {
-                        title: title.to_string(),
+                    results.push(ScanResult {
+                        entry: index.best_match(&title, Some(year)),
+                        title: title,
                         year: year,
                         movie: child,
                     });
@@ -93,5 +94,7 @@ pub fn scan(root: &File) -> Vec<ScanResult> {
         }
     }
 
-    movies
+    results.retain(|sr| !ignored.contains(&sr.movie));
+
+    results
 }
