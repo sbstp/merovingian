@@ -12,7 +12,7 @@ use crate::flicks::{
     fingerprint,
     index::{self, Index},
     library::Library,
-    scan,
+    scan::{self, ScanResult},
     transfer::{Manager, Transfer},
     utils::clean_path,
     vfs,
@@ -69,21 +69,37 @@ fn lookup_entry<'i>(input: &Input, index: &'i Index) -> &'i index::Entry {
     }
 }
 
-fn library_add(library: &mut Library, title: &index::Entry, ext: &str, fingerprint: String) -> Result<()> {
+fn library_add(
+    manager: &mut Manager,
+    library: &mut Library,
+    sr: &ScanResult,
+    title: &index::Entry,
+    ext: &str,
+    fingerprint: String,
+) -> Result<()> {
     let rel_path = make_movie_path(&title.primary_title, title.year, ext);
 
     let full_path = library.root().join(&rel_path);
 
-    // manager.add_transfer(sr.movie.path(), full_path);
-    // let mut x = Instant::now();
-    // while manager.has_work() {
-    //     manager.tick();
-    //     if x.elapsed() > Duration::from_secs(1) {
-    //         print_transfer(manager.current());
-    //         x = Instant::now();
-    //     }
-    // }
-    // println!("{:#?}", manager);
+    manager.add_transfer(sr.movie.path(), &full_path);
+    for sub in sr.subtitles.iter() {
+        manager.add_transfer(
+            sub.file.path(),
+            full_path
+                .clone()
+                .with_extension(&format!("{}.{}", sub.lang.code(), &sub.format.get_name()[1..4])),
+        );
+    }
+
+    let mut x = Instant::now();
+    while manager.has_work() {
+        manager.tick();
+        if x.elapsed() > Duration::from_secs(1) {
+            print_transfer(manager.current());
+            x = Instant::now();
+        }
+    }
+    println!("{:#?}", manager);
 
     library.add_entry(&title, rel_path, fingerprint);
     library.commit()?;
@@ -110,7 +126,7 @@ fn main() -> Result<()> {
             println!("Path: {}", sr.movie.path().display());
         } else {
             println!("File: {}", sr.movie.name());
-            for sub in sr.subtitles {
+            for sub in sr.subtitles.iter() {
                 println!("Subtitle: [{}] {}", sub.lang.code(), sub.file.path().display());
             }
 
@@ -132,11 +148,11 @@ fn main() -> Result<()> {
             );
             match answer {
                 'a' => {
-                    library_add(&mut library, &title, sr.movie.ext(), fingerprint)?;
+                    library_add(&mut manager, &mut library, &sr, &title, sr.movie.ext(), fingerprint)?;
                 }
                 'l' => {
                     let title = lookup_entry(&input, &index);
-                    library_add(&mut library, &title, sr.movie.ext(), fingerprint)?;
+                    library_add(&mut manager, &mut library, &sr, &title, sr.movie.ext(), fingerprint)?;
                 }
                 's' => {}
                 _ => unreachable!(),
