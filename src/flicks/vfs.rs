@@ -48,16 +48,16 @@ impl File {
         &self.data().path
     }
 
-    pub fn name(&self) -> Option<&str> {
-        self.path().file_name().and_then(|s| s.to_str())
+    pub fn name(&self) -> &str {
+        self.path().file_name().and_then(|s| s.to_str()).unwrap_or("")
     }
 
-    pub fn stem(&self) -> Option<&str> {
-        self.path().file_stem().and_then(|s| s.to_str())
+    pub fn stem(&self) -> &str {
+        self.path().file_stem().and_then(|s| s.to_str()).unwrap_or("")
     }
 
-    pub fn ext(&self) -> Option<&str> {
-        self.path().extension().and_then(|s| s.to_str())
+    pub fn ext(&self) -> &str {
+        self.path().extension().and_then(|s| s.to_str()).unwrap_or("")
     }
 
     pub fn metadata(&self) -> &Metadata {

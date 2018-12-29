@@ -109,7 +109,10 @@ fn main() -> Result<()> {
             println!("Movie ignored because its fingerprint is already present in the library.");
             println!("Path: {}", sr.movie.path().display());
         } else {
-            println!("File: {}", sr.movie.name().unwrap());
+            println!("File: {}", sr.movie.name());
+            for sub in sr.subtitles {
+                println!("Subtitle: [{}] {}", sub.lang.code(), sub.file.path().display());
+            }
 
             let title = sr.entry.unwrap_or_else(|| {
                 println!("No match found.");
@@ -129,11 +132,11 @@ fn main() -> Result<()> {
             );
             match answer {
                 'a' => {
-                    library_add(&mut library, &title, sr.movie.ext().unwrap(), fingerprint)?;
+                    library_add(&mut library, &title, sr.movie.ext(), fingerprint)?;
                 }
                 'l' => {
                     let title = lookup_entry(&input, &index);
-                    library_add(&mut library, &title, sr.movie.ext().unwrap(), fingerprint)?;
+                    library_add(&mut library, &title, sr.movie.ext(), fingerprint)?;
                 }
                 's' => {}
                 _ => unreachable!(),
