@@ -8,10 +8,16 @@ use super::error::Result;
 use super::index;
 
 #[derive(Deserialize, Serialize)]
+pub struct Subtitle {
+    pub path: PathBuf,
+    pub fingerprint: String,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct Entry {
     title_id: u32,
     movie_file: PathBuf,
-    subtitle_files: Vec<PathBuf>,
+    subtitles: Vec<Subtitle>,
     fingerprint: String,
 }
 
@@ -65,13 +71,19 @@ impl Library {
         self.content.entries.iter().any(|e| e.title_id == title_id)
     }
 
-    pub fn add_entry(&mut self, entry: &index::Entry, movie_file: impl Into<PathBuf>, fingeprint: String) {
+    pub fn add_entry(
+        &mut self,
+        entry: &index::Entry,
+        movie_file: impl Into<PathBuf>,
+        fingeprint: String,
+        subtitles: impl Into<Vec<Subtitle>>,
+    ) {
         let movie_file = movie_file.into();
         self.content.entries.push(Entry {
             title_id: entry.title_id,
             movie_file: movie_file.to_path_buf(),
             fingerprint: fingeprint,
-            subtitle_files: vec![],
+            subtitles: subtitles.into(),
         });
     }
 }

@@ -75,7 +75,7 @@ impl Input {
         self.read()
     }
 
-    fn read(&self) -> String {
+    pub fn read(&self) -> String {
         self.flush(); // always flush stdout before reading from stdin
         let mut line = String::new();
         self.stdin.read_line(&mut line).unwrap();
@@ -83,7 +83,7 @@ impl Input {
         line
     }
 
-    fn flush(&self) {
+    pub fn flush(&self) {
         let _ = io::stdout().flush();
     }
 }

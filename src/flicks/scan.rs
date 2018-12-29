@@ -1,10 +1,11 @@
 use std::fs;
-use std::io::Read;
+use std::io::{BufReader, Read};
 
 use chardet;
 use encoding;
 use hashbrown::HashSet;
 use lazy_static::lazy_static;
+use log::debug;
 use subparse::{self, SubtitleFormat};
 use whatlang::{self, Lang};
 
@@ -44,7 +45,7 @@ fn is_subtitle(file: &File) -> bool {
 fn token_splitter(c: char) -> bool {
     match c {
         c if c.is_whitespace() => true,
-        '_' | '-' | '.' => true,
+        '_' | '-' | '.' | '(' | ')' | '[' | ']' | ':' => true,
         _ => false,
     }
 }
@@ -75,90 +76,156 @@ fn parse_title(stem: &str) -> Option<(String, i32)> {
     Some((title, year))
 }
 
-fn analyze_subtitle(file: &File) -> Option<SubtitleFile> {
-    let mut fd = fs::File::open(file.path()).ok()?;
-    let mut contents = Vec::new();
-    fd.read_to_end(&mut contents).ok()?;
+pub struct Scanner {
+    buff: Vec<u8>,
+}
 
-    // detect the encoding
-    let (charset, _, _) = chardet::detect(&contents);
-    let encoding = encoding::label::encoding_from_whatwg_label(chardet::charset2encoding(&charset))?;
-
-    // parse the subtitle file
-    let format = subparse::get_subtitle_format(&format!(".{}", file.ext().to_lowercase()), &contents)?;
-    let sub = subparse::parse_bytes(format, &contents, encoding, 30.0).ok()?;
-
-    // join all the text segments into a string
-    let mut text = String::new();
-    for entry in sub.get_subtitle_entries().ok()? {
-        if let Some(line) = entry.line {
-            text.push_str(&line);
+impl Scanner {
+    pub fn new() -> Scanner {
+        Scanner {
+            buff: Vec::with_capacity(500 * 1024), // 500 KiB should be enough for most files
         }
     }
 
-    if text.is_empty() {
-        return None;
-    }
+    fn analyze_subtitle(&mut self, file: &File) -> Option<SubtitleFile> {
+        debug!("analyzing subtitle {}", file.path().display());
 
-    // detect language
-    let lang = whatlang::detect(&text)?.lang();
+        self.buff.clear();
+        let mut fd = BufReader::new(fs::File::open(file.path()).ok()?);
 
-    Some(SubtitleFile {
-        file: file.clone(),
-        format: format,
-        lang: lang,
-    })
-}
+        // Only read the first 512 bytes to scan for the format.
+        // VoSub being images, the files are really large. Since
+        // these files are ignored anyway, we don't need to read them fully.
+        //
+        // Capacity of the buffer is at least 500 KiB, so set_len is safe.
+        // We set the len to 512 so that `read_exact` will read 512 bytes.
+        unsafe {
+            self.buff.set_len(512);
+        }
+        fd.read_exact(&mut self.buff[..512]).ok()?;
+        let format = subparse::get_subtitle_format(&format!(".{}", file.ext().to_lowercase()), &self.buff)?;
+        if format == SubtitleFormat::VobSubSub || format == SubtitleFormat::VobSubIdx {
+            return None;
+        }
 
-fn scan_subtitles(movie: &File) -> Vec<SubtitleFile> {
-    let mut subs = vec![];
-    for file in movie.siblings() {
-        if is_subtitle(&file) && file.name().starts_with(movie.stem()) {
-            if let Some(sub) = analyze_subtitle(&file) {
-                subs.push(sub);
+        // Once we know this subtitle file is actually something we care about,
+        // we can read it fully into a re-usable buffer. The bytes are appended
+        // to the buffer, so there's no need to seek from the start and re-read
+        // the bytes.
+        fd.read_to_end(&mut self.buff).ok()?;
+
+        // detect the encoding
+        let (charset, _, _) = chardet::detect(&self.buff);
+        let encoding = encoding::label::encoding_from_whatwg_label(chardet::charset2encoding(&charset))?;
+
+        // parse the subtitle file
+        let sub = subparse::parse_bytes(format, &self.buff, encoding, 30.0).ok()?;
+
+        // join all the text segments into a string
+        let mut text = String::new();
+        for entry in sub.get_subtitle_entries().ok()? {
+            if let Some(line) = entry.line {
+                text.push_str(&line);
             }
         }
+
+        if text.is_empty() {
+            return None;
+        }
+
+        // detect language
+        let lang = whatlang::detect(&text)?.lang();
+
+        Some(SubtitleFile {
+            file: file.clone(),
+            format: format,
+            lang: lang,
+        })
     }
-    subs
-}
 
-pub fn scan<'i>(root: &File, index: &'i Index) -> Vec<ScanResult<'i>> {
-    let mut ignored: HashSet<File> = HashSet::new();
-    let mut results: Vec<ScanResult> = Vec::new();
+    fn scan_subtitles(&mut self, movie: &File) -> Vec<SubtitleFile> {
+        debug!("scanning subtitles for {}", movie.path().display());
 
-    for child in root.descendants() {
-        if is_video(&child) {
-            if let Some((title, year)) = parse_title(child.stem()) {
-                // once we find a movie we try to look for peers that are small
-                // (usually featurettes, samples and extras) and mark them as ignored
-                if let Some(parent) = child.parent() {
-                    if parent != *root {
-                        let size = child.metadata().len() as f64;
+        let mut subs = vec![];
+        for file in movie.siblings() {
+            if is_subtitle(&file) && file.name().starts_with(movie.stem()) {
+                if let Some(sub) = self.analyze_subtitle(&file) {
+                    subs.push(sub);
+                }
+            }
+        }
+        subs
+    }
 
-                        for peer in parent.descendants() {
-                            if peer.metadata().len() as f64 / size <= 0.40 {
-                                ignored.insert(peer);
+    pub fn scan<'i>(mut self, root: &File, index: &'i Index) -> Vec<ScanResult<'i>> {
+        let mut ignored: HashSet<File> = HashSet::new();
+        let mut results: Vec<ScanResult> = Vec::new();
+
+        for child in root.descendants() {
+            debug!("child {}", child.path().display());
+            if is_video(&child) {
+                debug!("child is a video {}", child.path().display());
+                if let Some((title, year)) = parse_title(child.stem()) {
+                    debug!("child is movie {}", child.path().display());
+                    // once we find a movie we try to look for peers that are small
+                    // (usually featurettes, samples and extras) and mark them as ignored
+                    if let Some(parent) = child.parent() {
+                        if parent != *root {
+                            let size = child.metadata().len() as f64;
+
+                            for peer in parent.descendants() {
+                                if peer.metadata().len() as f64 / size <= 0.40 {
+                                    ignored.insert(peer);
+                                }
                             }
                         }
                     }
-                }
 
-                results.push(ScanResult {
-                    entry: index.best_match(&title, Some(year)),
-                    title: title,
-                    year: year,
-                    movie: child,
-                    subtitles: vec![],
-                });
+                    results.push(ScanResult {
+                        entry: index.best_match(&title, Some(year)),
+                        title: title,
+                        year: year,
+                        movie: child,
+                        subtitles: vec![],
+                    });
+                }
             }
         }
+
+        results.retain(|sr| !ignored.contains(&sr.movie));
+
+        for sr in results.iter_mut() {
+            sr.subtitles.extend(self.scan_subtitles(&sr.movie));
+        }
+
+        results
     }
+}
 
-    results.retain(|sr| !ignored.contains(&sr.movie));
+#[test]
+fn test_parse_title_simple() {
+    assert_eq!(
+        parse_title("American Psycho 1999"),
+        Some(("american psycho".to_string(), 1999))
+    );
 
-    for sr in results.iter_mut() {
-        sr.subtitles.extend(scan_subtitles(&sr.movie));
-    }
+    assert_eq!(
+        parse_title("American_Psycho_(1999)"),
+        Some(("american psycho".to_string(), 1999))
+    );
 
-    results
+    assert_eq!(
+        parse_title("American.Psycho.[1999]"),
+        Some(("american psycho".to_string(), 1999))
+    );
+}
+
+#[test]
+fn test_parse_title_with_year() {
+    assert_eq!(
+        parse_title("2001: A Space Odyssey (1968)"),
+        Some(("2001 a space odyssey".to_string(), 1968))
+    );
+
+    assert_eq!(parse_title("1981.(2009)"), Some(("1981".to_string(), 2009)));
 }

@@ -1,3 +1,4 @@
+use std::cmp;
 use std::fmt::Write;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
@@ -26,10 +27,13 @@ where
         return Err(io::Error::new(io::ErrorKind::Other, "file is empty"));
     }
 
+    // The amount of data to read is either the length of the file or the BLOCK_SIZE, whichever is smaller.
+    let read_max = cmp::min(len, BLOCK_SIZE as u64) as usize;
+
     let pos = (len / 2).checked_sub(BLOCK_SIZE / 2).unwrap_or(0);
     file.seek(SeekFrom::Start(pos))?;
-    file.read_exact(&mut buf)?;
-    hasher.input(&buf[..]);
+    file.read_exact(&mut buf[..read_max])?;
+    hasher.input(&buf);
 
     let mut hash = String::with_capacity(64);
     let output = &hasher.result()[..];
