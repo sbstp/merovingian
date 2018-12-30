@@ -1,7 +1,10 @@
 use std::cmp;
+use std::fmt;
 use std::ops::Deref;
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct NonNan(f64);
 
 impl NonNan {
@@ -10,6 +13,12 @@ impl NonNan {
             panic!("NonNan created with NaN value");
         }
         NonNan(val)
+    }
+}
+
+impl fmt::Display for NonNan {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 

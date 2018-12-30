@@ -14,22 +14,22 @@ pub struct Subtitle {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct Entry {
-    title_id: u32,
-    movie_file: PathBuf,
-    subtitles: Vec<Subtitle>,
-    fingerprint: String,
+pub struct Movie {
+    pub title_id: u32,
+    pub path: PathBuf,
+    pub subtitles: Vec<Subtitle>,
+    pub fingerprint: String,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct Content {
-    root: PathBuf,
-    entries: Vec<Entry>,
+    pub root: PathBuf,
+    pub movies: Vec<Movie>,
 }
 
 pub struct Library {
-    path: PathBuf,
-    content: Content,
+    pub path: PathBuf,
+    pub content: Content,
 }
 
 impl Library {
@@ -38,7 +38,7 @@ impl Library {
             path: path.into(),
             content: Content {
                 root: root.into(),
-                entries: vec![],
+                movies: vec![],
             },
         }
     }
@@ -64,24 +64,23 @@ impl Library {
     }
 
     pub fn has_fingerprint(&self, fingeprint: &str) -> bool {
-        self.content.entries.iter().any(|e| e.fingerprint == fingeprint)
+        self.content.movies.iter().any(|e| e.fingerprint == fingeprint)
     }
 
     pub fn has_title(&self, title_id: u32) -> bool {
-        self.content.entries.iter().any(|e| e.title_id == title_id)
+        self.content.movies.iter().any(|e| e.title_id == title_id)
     }
 
-    pub fn add_entry(
+    pub fn add_movie(
         &mut self,
-        entry: &index::Entry,
-        movie_file: impl Into<PathBuf>,
+        title: &index::Title,
+        path: impl Into<PathBuf>,
         fingeprint: String,
         subtitles: impl Into<Vec<Subtitle>>,
     ) {
-        let movie_file = movie_file.into();
-        self.content.entries.push(Entry {
-            title_id: entry.title_id,
-            movie_file: movie_file.to_path_buf(),
+        self.content.movies.push(Movie {
+            title_id: title.title_id,
+            path: path.into(),
             fingerprint: fingeprint,
             subtitles: subtitles.into(),
         });

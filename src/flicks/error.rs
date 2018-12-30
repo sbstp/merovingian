@@ -22,7 +22,7 @@ pub enum Error {
     },
 }
 
-pub type Result<T> = result::Result<T, Error>;
+pub type Result<T = ()> = result::Result<T, Error>;
 
 impl fmt::Display for Error {
     fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {

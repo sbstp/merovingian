@@ -18,7 +18,7 @@ const SRC_FILE_BASICS: &str = "title.basics.tsv.gz";
 const SRC_FILE_RATINGS: &str = "title.ratings.tsv.gz";
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Entry {
+pub struct Title {
     pub title_id: u32,
     pub primary_title: String,
     pub original_title: Option<String>,
@@ -54,7 +54,7 @@ fn is_valid_type(title_type: &str) -> bool {
     }
 }
 
-fn build_entries_table(data_dir_path: &Path) -> Result<HashMap<u32, Entry>> {
+fn build_entries_table(data_dir_path: &Path) -> Result<HashMap<u32, Title>> {
     let mut ratings_reader = open_csv(&data_dir_path.join("title.ratings.tsv.gz"))?;
     let mut titles_reader = open_csv(&data_dir_path.join("title.basics.tsv.gz"))?;
 
@@ -69,7 +69,7 @@ fn build_entries_table(data_dir_path: &Path) -> Result<HashMap<u32, Entry>> {
         }
     }
 
-    let mut entries_table: HashMap<u32, Entry> = HashMap::new();
+    let mut entries_table: HashMap<u32, Title> = HashMap::new();
 
     for record in titles_reader.records() {
         let record = record?;
@@ -84,7 +84,7 @@ fn build_entries_table(data_dir_path: &Path) -> Result<HashMap<u32, Entry>> {
 
         match (is_valid_type(title_type), adult, start_year, runtime, vote_count) {
             (true, "0", Some(start_year), Some(runtime), Some(vote_count)) => {
-                let entry = Entry {
+                let entry = Title {
                     title_id,
                     primary_title: primary_title.into(),
                     original_title: if primary_title != original_title {
@@ -141,7 +141,7 @@ fn text_to_tokens(text: &str, tokens: &mut Vec<FixedString>) {
     tokens.dedup();
 }
 
-fn build_reverse_lookup_table(entries: &HashMap<u32, Entry>) -> HashMap<FixedString, HashSet<u32>> {
+fn build_reverse_lookup_table(entries: &HashMap<u32, Title>) -> HashMap<FixedString, HashSet<u32>> {
     let mut table = HashMap::new();
     let mut tokens = Vec::new();
 
@@ -210,9 +210,21 @@ fn most_common(counter: &Counter<u32>) -> Vec<u32> {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Scored<T> {
+    pub score: NonNan,
+    pub value: T,
+}
+
+impl<T> Scored<T> {
+    pub fn new(score: NonNan, value: T) -> Scored<T> {
+        Scored { score: score, value }
+    }
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct Index {
-    pub entries: HashMap<u32, Entry>,
+    pub entries: HashMap<u32, Title>,
     pub reverse: HashMap<FixedString, HashSet<u32>>,
 }
 
@@ -260,7 +272,7 @@ impl Index {
         Ok(())
     }
 
-    pub fn lookup(&self, text: &str, year: Option<i32>) -> Vec<&Entry> {
+    pub fn find_all(&self, text: &str, year: Option<i32>) -> Vec<Scored<&Title>> {
         let text = text.to_lowercase();
         let mut tokens = vec![];
 
@@ -275,7 +287,7 @@ impl Index {
             }
         }
 
-        let mut entries: Vec<&Entry> = most_common(&matches)
+        let mut entries: Vec<&Title> = most_common(&matches)
             .into_iter()
             .map(|title_id| &self.entries[&title_id])
             .collect();
@@ -285,7 +297,7 @@ impl Index {
         }
 
         if let Some(max_votes) = entries.iter().map(|entry| entry.vote_count).max() {
-            let scoring_func = |entry: &Entry| -> NonNan {
+            let scoring_func = |entry: &Title| -> NonNan {
                 let mut score = match &entry.original_title {
                     None => strsim::normalized_levenshtein(&entry.primary_title.to_lowercase(), &text),
                     Some(original_title) => f64::max(
@@ -300,13 +312,15 @@ impl Index {
                 NonNan::new(score)
             };
 
-            entries.sort_by_key(|entry| std::cmp::Reverse(scoring_func(entry)));
+            let mut scored: Vec<Scored<&Title>> = entries.iter().map(|&e| Scored::new(scoring_func(e), e)).collect();
+            scored.sort_by_key(|s| std::cmp::Reverse(s.score));
+            scored
+        } else {
+            vec![]
         }
-
-        entries
     }
 
-    pub fn best_match(&self, text: &str, year: Option<i32>) -> Option<&Entry> {
-        self.lookup(text, year).into_iter().next()
+    pub fn find(&self, text: &str, year: Option<i32>) -> Option<Scored<&Title>> {
+        self.find_all(text, year).into_iter().next()
     }
 }

@@ -5,11 +5,9 @@ use chardet;
 use encoding;
 use hashbrown::HashSet;
 use lazy_static::lazy_static;
-use log::debug;
 use subparse::{self, SubtitleFormat};
 use whatlang::{self, Lang};
 
-use super::index::{Entry, Index};
 use super::vfs::File;
 
 lazy_static! {
@@ -19,12 +17,10 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub struct ScanResult<'i> {
-    pub movie: File,
-    pub year: i32,
+pub struct MovieFile {
+    pub file: File,
     pub title: String,
-    pub entry: Option<&'i Entry>,
-    pub subtitles: Vec<SubtitleFile>,
+    pub year: i32,
 }
 
 #[derive(Debug)]
@@ -32,6 +28,16 @@ pub struct SubtitleFile {
     pub file: File,
     pub lang: Lang,
     pub format: SubtitleFormat,
+}
+
+impl SubtitleFile {
+    pub fn lang(&self) -> &str {
+        self.lang.code()
+    }
+
+    pub fn ext(&self) -> &str {
+        &self.format.get_name()[1..4]
+    }
 }
 
 fn is_video(file: &File) -> bool {
@@ -63,7 +69,7 @@ fn is_year(token: &str) -> bool {
     token.len() == 4 && token.chars().all(|c| c.is_digit(10))
 }
 
-fn parse_title(stem: &str) -> Option<(String, i32)> {
+fn parse_file_name(stem: &str) -> Option<(String, i32)> {
     let stem = stem.to_lowercase();
     let mut tokens = Vec::new();
     text_to_tokens(&stem, &mut tokens);
@@ -88,8 +94,6 @@ impl Scanner {
     }
 
     fn analyze_subtitle(&mut self, file: &File) -> Option<SubtitleFile> {
-        debug!("analyzing subtitle {}", file.path().display());
-
         self.buff.clear();
         let mut fd = BufReader::new(fs::File::open(file.path()).ok()?);
 
@@ -143,9 +147,8 @@ impl Scanner {
         })
     }
 
-    fn scan_subtitles(&mut self, movie: &File) -> Vec<SubtitleFile> {
-        debug!("scanning subtitles for {}", movie.path().display());
-
+    /// Scan for subtitles around a movie file.
+    pub fn scan_subtitles(&mut self, movie: &File) -> Vec<SubtitleFile> {
         let mut subs = vec![];
         for file in movie.siblings() {
             if is_subtitle(&file) && file.name().starts_with(movie.stem()) {
@@ -157,18 +160,16 @@ impl Scanner {
         subs
     }
 
-    pub fn scan<'i>(mut self, root: &File, index: &'i Index) -> Vec<ScanResult<'i>> {
+    /// Scan for files that look like movies.
+    pub fn scan_movies<'i>(&mut self, root: &File) -> Vec<MovieFile> {
         let mut ignored: HashSet<File> = HashSet::new();
-        let mut results: Vec<ScanResult> = Vec::new();
+        let mut results: Vec<MovieFile> = Vec::new();
 
         for child in root.descendants() {
-            debug!("child {}", child.path().display());
             if is_video(&child) {
-                debug!("child is a video {}", child.path().display());
-                if let Some((title, year)) = parse_title(child.stem()) {
-                    debug!("child is movie {}", child.path().display());
-                    // once we find a movie we try to look for peers that are small
-                    // (usually featurettes, samples and extras) and mark them as ignored
+                if let Some((title, year)) = parse_file_name(child.stem()) {
+                    // Once we find a movie we try to look for peers that are small.
+                    // Usually featurettes, samples and extras and mark them as ignored.
                     if let Some(parent) = child.parent() {
                         if parent != *root {
                             let size = child.metadata().len() as f64;
@@ -181,51 +182,45 @@ impl Scanner {
                         }
                     }
 
-                    results.push(ScanResult {
-                        entry: index.best_match(&title, Some(year)),
+                    results.push(MovieFile {
+                        file: child.clone(),
                         title: title,
                         year: year,
-                        movie: child,
-                        subtitles: vec![],
                     });
                 }
             }
         }
 
-        results.retain(|sr| !ignored.contains(&sr.movie));
-
-        for sr in results.iter_mut() {
-            sr.subtitles.extend(self.scan_subtitles(&sr.movie));
-        }
+        results.retain(|mf| !ignored.contains(&mf.file));
 
         results
     }
 }
 
 #[test]
-fn test_parse_title_simple() {
+fn test_parse_file_name_simple() {
     assert_eq!(
-        parse_title("American Psycho 1999"),
+        parse_file_name("American Psycho 1999"),
         Some(("american psycho".to_string(), 1999))
     );
 
     assert_eq!(
-        parse_title("American_Psycho_(1999)"),
+        parse_file_name("American_Psycho_(1999)"),
         Some(("american psycho".to_string(), 1999))
     );
 
     assert_eq!(
-        parse_title("American.Psycho.[1999]"),
+        parse_file_name("American.Psycho.[1999]"),
         Some(("american psycho".to_string(), 1999))
     );
 }
 
 #[test]
-fn test_parse_title_with_year() {
+fn test_parse_file_name_with_year() {
     assert_eq!(
-        parse_title("2001: A Space Odyssey (1968)"),
+        parse_file_name("2001: A Space Odyssey (1968)"),
         Some(("2001 a space odyssey".to_string(), 1968))
     );
 
-    assert_eq!(parse_title("1981.(2009)"), Some(("1981".to_string(), 2009)));
+    assert_eq!(parse_file_name("1981.(2009)"), Some(("1981".to_string(), 2009)));
 }
