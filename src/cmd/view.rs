@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::flicks::{Index, Result};
+use crate::mero::{Index, Result};
 use crate::storage::Scan;
 
 pub fn cmd_view(path: impl AsRef<Path>, index: &Index) -> Result {

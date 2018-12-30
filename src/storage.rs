@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::flicks::{NonNan, Result, SubtitleFile};
+use crate::mero::{NonNan, Result, SubtitleFile};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {

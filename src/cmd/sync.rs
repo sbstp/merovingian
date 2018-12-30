@@ -1,4 +1,4 @@
-use crate::flicks::{Library, Result};
+use crate::mero::{Library, Result};
 
 pub fn cmd_sync(library: &mut Library) -> Result {
     let root = library.root().to_path_buf();

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::flicks::{fingerprint, walk, Index, Library, Result, Scanner};
+use crate::mero::{fingerprint, walk, Index, Library, Result, Scanner};
 use crate::storage::{Match, Scan};
 
 pub fn cmd_scan(import_path: impl AsRef<Path>, index: &Index, library: &Library) -> Result {

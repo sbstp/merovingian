@@ -1,5 +1,5 @@
 [package]
-name = "flicks2"
+name = "mero"
 version = "0.1.0"
 authors = ["Simon Bernier St-Pierre <sbernierstpierre@gmail.com>"]
 edition = "2018"

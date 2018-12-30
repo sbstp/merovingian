@@ -1,16 +1,16 @@
 #![allow(dead_code)]
 
 mod cmd;
-mod flicks;
 mod input;
+mod mero;
 mod storage;
 
 use std::path::Path;
 
 use structopt::StructOpt;
 
-use crate::flicks::{error::Result, index::Index, library::Library};
 use crate::input::Input;
+use crate::mero::{error::Result, index::Index, library::Library};
 
 fn open_library(input: &Input) -> Library {
     match Library::open(".index/library.json") {

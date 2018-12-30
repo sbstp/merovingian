@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use crate::flicks::{fingerprint, library, utils::clean_path, Index, Library, Manager, Result, Transfer};
+use crate::mero::{fingerprint, library, utils::clean_path, Index, Library, Manager, Result, Transfer};
 use crate::storage::{Scan, Subtitle};
 
 fn make_movie_path(primary_title: &str, year: u16, ext: &str) -> PathBuf {
