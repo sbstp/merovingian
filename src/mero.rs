@@ -17,3 +17,4 @@ pub use self::scan::{Scanner, SubtitleFile};
 pub use self::transfer::{Manager, Transfer};
 pub use self::utils::NonNan;
 pub use self::vfs::{walk, File};
+pub use self::fingerprint::Fingerprint;

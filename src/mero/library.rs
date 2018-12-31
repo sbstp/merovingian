@@ -4,13 +4,12 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::error::Result;
-use super::index;
+use super::{index, Fingerprint, Result};
 
 #[derive(Deserialize, Serialize)]
 pub struct Subtitle {
     pub path: PathBuf,
-    pub fingerprint: String,
+    pub fingerprint: Fingerprint,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -18,7 +17,7 @@ pub struct Movie {
     pub title_id: u32,
     pub path: PathBuf,
     pub subtitles: Vec<Subtitle>,
-    pub fingerprint: String,
+    pub fingerprint: Fingerprint,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -55,8 +54,8 @@ impl Library {
         Ok(())
     }
 
-    pub fn has_fingerprint(&self, fingeprint: &str) -> bool {
-        self.content.movies.iter().any(|e| e.fingerprint == fingeprint)
+    pub fn has_fingerprint(&self, fingeprint: &Fingerprint) -> bool {
+        self.content.movies.iter().any(|e| e.fingerprint == *fingeprint)
     }
 
     pub fn has_title(&self, title_id: u32) -> bool {
@@ -67,7 +66,7 @@ impl Library {
         &mut self,
         title: &index::Title,
         path: impl Into<PathBuf>,
-        fingeprint: String,
+        fingeprint: Fingerprint,
         subtitles: impl Into<Vec<Subtitle>>,
     ) {
         self.content.movies.push(Movie {

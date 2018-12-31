@@ -90,6 +90,8 @@ enum App {
     Apply { scan: String },
     #[structopt(name = "init", about = "Initialize merovingian with the given library path")]
     Init { path: String },
+    #[structopt(name = "rehash", about = "Update fingerprints of movies and subtitles")]
+    Rehash,
     #[structopt(name = "scan", about = "Scan a directory for movies")]
     Scan { directory: String },
     #[structopt(name = "sync", about = "Synchronize changes made on disk to the library")]
@@ -109,42 +111,58 @@ where
     Ok(())
 }
 
+fn open_all<F>(func: F) -> Result
+where
+    F: FnOnce(Config, Index, Library) -> Result,
+{
+    match Config::open()? {
+        Some(config) => {
+            let index = load_or_create_index(&config)?;
+            let library = Library::open(&config.library_path())?;
+            func(config, index, library)
+        }?,
+        None => println!("Initialize the config with the init command."),
+    }
+    Ok(())
+}
+
+fn open_library<F>(func: F) -> Result
+where
+    F: FnOnce(Config, Library) -> Result,
+{
+    match Config::open()? {
+        Some(config) => {
+            let library = Library::open(&config.library_path())?;
+            func(config, library)
+        }?,
+        None => println!("Initialize the config with the init command."),
+    }
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let args = App::from_args();
 
+    use crate::cmd::*;
+
     match args {
         App::Apply { scan } => {
-            with_config(|config| {
-                let index = load_or_create_index(&config)?;
-                let mut library = Library::open(&config.library_path())?;
-                cmd::apply::cmd_apply(config, &scan, &index, &mut library)?;
-                Ok(())
-            })?;
+            open_all(|config, index, mut library| cmd_apply(config, &scan, &index, &mut library))?;
         }
         App::Init { path } => {
-            cmd::init::cmd_init(&path)?;
+            cmd_init(&path)?;
+        }
+        App::Rehash => {
+            open_library(|_, mut library| cmd_rehash(&mut library))?;
         }
         App::Scan { directory } => {
-            with_config(|config| {
-                let index = load_or_create_index(&config)?;
-                let library = Library::open(&config.library_path())?;
-                cmd::scan::cmd_scan(&directory, &index, &library)?;
-                Ok(())
-            })?;
-        }
-        App::View { scan } => {
-            with_config(|config| {
-                let index = load_or_create_index(&config)?;
-                cmd::view::cmd_view(&scan, &index)?;
-                Ok(())
-            })?;
+            open_all(|_, index, library| cmd_scan(&directory, &index, &library))?;
         }
         App::Sync => {
-            with_config(|config| {
-                let mut library = Library::open(&config.library_path())?;
-                cmd::sync::cmd_sync(config, &mut library)?;
-                Ok(())
-            })?;
+            open_library(|config, mut library| cmd_sync(config, &mut library))?;
+        }
+        App::View { scan } => {
+            open_all(|_, index, _| cmd_view(&scan, &index))?;
         }
     }
 

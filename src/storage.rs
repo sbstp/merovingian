@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
-use crate::mero::{NonNan, Result, SubtitleFile};
+use crate::mero::{Fingerprint, NonNan, Result, SubtitleFile};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -88,7 +88,7 @@ impl From<SubtitleFile> for Subtitle {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Match {
     pub path: PathBuf,
-    pub fingerprint: String,
+    pub fingerprint: Fingerprint,
     pub score: NonNan,
     pub title_id: u32,
     pub subtitles: Vec<Subtitle>,
