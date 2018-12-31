@@ -1,5 +1,13 @@
 use std::path::{Path, PathBuf};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::time::{Duration, Instant};
+
+use lazy_static::lazy_static;
+use signal_hook::flag as signal;
+use signal_hook::{SIGINT, SIGTERM};
 
 use crate::mero::{fingerprint, library, utils::clean_path, Index, Library, Manager, Result, Transfer};
 use crate::storage::{Config, Scan, Subtitle};
@@ -25,19 +33,33 @@ fn print_transfer(transfer: &Transfer) {
     println!();
 }
 
+lazy_static! {
+    static ref QUIT: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+}
+
 pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library: &mut Library) -> Result {
+    signal::register(SIGINT, QUIT.clone()).expect("unable to setup SIGINT hook");
+    signal::register(SIGTERM, QUIT.clone()).expect("unable to setup SIGTERM hook");
+
     let path = path.as_ref();
 
     let scan = Scan::load(path)?;
 
+    let mut finished = 0;
+    let len = scan.matches.len();
+
     for mat in scan.matches {
         if library.has_fingerprint(&mat.fingerprint) {
-            println!("Movie has already been added to the library. Skipping.");
-            println!("If you have deleted the movie from your disk and are trying to re-import it,");
-            println!("make sure to run the sync command to reflect the changes you made on disk into");
-            println!("the library.");
+            println!(
+                "Movie has already been added to the library. Skipping {}",
+                mat.path.display()
+            );
+            finished += 1;
             continue;
         }
+
+        println!("Starting copy for {}", mat.path.display());
+        println!();
 
         let title = &index.entries[&mat.title_id];
 
@@ -61,14 +83,32 @@ pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library:
             manager.add_transfer(sub.path, subtitle_path);
         }
 
-        let mut x = Instant::now();
-        while manager.has_work() {
-            manager.tick();
-            if x.elapsed() > Duration::from_secs(1) && manager.has_work() {
-                print_transfer(manager.current());
-                x = Instant::now();
+        let mut last = Instant::now();
+        loop {
+            if QUIT.load(Ordering::SeqCst) {
+                // received SIGINT or SIGTERM, remove incomplete transfer
+                println!("Received quit signal, cancelling current transfer.");
+                manager.try_cancel();
+                return Ok(());
+            }
+            match manager.step() {
+                Ok(Some(transfer)) => {
+                    if last.elapsed() > Duration::from_secs(1) {
+                        print_transfer(transfer);
+                        last = Instant::now();
+                    }
+                }
+                Ok(None) => break,
+                Err(err) => {
+                    // IO error occured
+                    println!("IO error {}, cancelling current transfer.", err);
+                    manager.try_cancel();
+                    return Err(err);
+                }
             }
         }
+
+        finished += 1;
 
         println!("Transfer status");
         println!("===============");
@@ -77,7 +117,8 @@ pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library:
             print_transfer(transfer);
         }
 
-        println!("===============");
+        println!("{}/{} files transfered", finished, len);
+        println!("");
 
         library.add_movie(title, movie_path, mat.fingerprint, lib_subtitles);
         library.commit()?;

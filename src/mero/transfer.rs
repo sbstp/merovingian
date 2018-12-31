@@ -3,11 +3,12 @@ use std::fs::{self, DirBuilder};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use super::error::Error;
+use super::error::Result;
 
 #[derive(Debug)]
 pub enum Status {
     Waiting,
+    Cancelled,
     Copied,
     Copying {
         copied: u64,
@@ -16,7 +17,7 @@ pub enum Status {
         dst: fs::File,
     },
     Hardlinked,
-    Err(Error),
+    Err,
 }
 
 impl fmt::Display for Status {
@@ -27,12 +28,13 @@ impl fmt::Display for Status {
 
         match self {
             Waiting => write!(f, "Waiting"),
+            Cancelled => write!(f, "Cancelled"),
             Copied => write!(f, "Copied"),
             Copying { copied, len, .. } => {
                 write!(f, "Copying({:.2}/{:.2} MiB)", *copied as f64 / MIB, *len as f64 / MIB)
             }
             Hardlinked => write!(f, "Hardlinked"),
-            Err(err) => write!(f, "Err({})", err),
+            Err => write!(f, "Err"),
         }
     }
 }
@@ -47,70 +49,96 @@ pub struct Transfer {
 const EXDEV: i32 = 18;
 
 impl Transfer {
-    pub fn finished(&self) -> bool {
-        match self.status.as_ref().unwrap() {
+    #[inline]
+    pub fn status(&self) -> &Status {
+        self.status.as_ref().unwrap()
+    }
+
+    #[inline]
+    pub fn set_status(&mut self, status: Status) {
+        self.status = Some(status);
+    }
+
+    #[inline]
+    fn finished(&self) -> bool {
+        match self.status() {
             Status::Waiting | Status::Copying { .. } => false,
             _ => true,
         }
     }
 
-    pub fn status(&self) -> &Status {
-        self.status.as_ref().unwrap()
-    }
-
-    fn update_status<'b>(&self, status: Status, buf: &'b mut Vec<u8>) -> Status {
+    fn update_status<'b>(&self, status: Status, buf: &'b mut Vec<u8>) -> Result<Status> {
         match status {
             Status::Waiting => {
                 if let Some(parent) = self.dst.parent() {
-                    if let Err(err) = DirBuilder::new().recursive(true).create(parent) {
-                        return Status::Err(err.into());
+                    DirBuilder::new().recursive(true).create(parent)?;
+                }
+
+                let src_metadata = self.src.metadata()?;
+
+                // If the destination exists but doesn't have the same length,
+                // as the source we might have an incomplete file. Delete it.
+                if let Ok(dst_metadata) = self.dst.metadata() {
+                    if dst_metadata.len() != src_metadata.len() {
+                        fs::remove_file(&self.dst)?;
+                    } else {
+                        return Ok(Status::Copied);
                     }
                 }
 
-                match fs::hard_link(&self.src, &self.dst) {
+                // Try to hard-link the file. If it cannot be hard-linked, copy it.
+                Ok(match fs::hard_link(&self.src, &self.dst) {
                     Ok(_) => Status::Hardlinked,
                     // TODO: check what stupid thing Windows does with hard-linking across devices
                     Err(ref err) if err.raw_os_error() == Some(EXDEV) => {
-                        match (fs::File::open(&self.src), fs::File::create(&self.dst)) {
-                            (Ok(src), Ok(dst)) => Status::Copying {
-                                len: src.metadata().expect("could not get src len").len(),
-                                src,
-                                dst,
-                                copied: 0,
-                            },
-                            (Err(err), Ok(_)) => Status::Err(Error::transfer(err, None)),
-                            (Ok(_), Err(err)) => Status::Err(Error::transfer(None, err)),
-                            (Err(err_src), Err(err_dst)) => Status::Err(Error::transfer(err_src, err_dst)),
+                        let src = fs::File::open(&self.src)?;
+                        let dst = fs::File::create(&self.dst)?;
+
+                        Status::Copying {
+                            src,
+                            dst,
+                            len: src_metadata.len(),
+                            copied: 0,
                         }
                     }
-                    Err(err) => Status::Err(Error::transfer(None, err)),
-                }
+                    Err(err) => return Err(err.into()),
+                })
             }
             Status::Copying {
                 mut src,
                 mut dst,
                 copied,
                 len,
-            } => match src.read(buf) {
-                Ok(0) => Status::Copied,
-                Ok(n) => match dst.write_all(&buf[..n]) {
-                    Ok(_) => Status::Copying {
+            } => Ok(match src.read(buf)? {
+                0 => Status::Copied,
+                n => {
+                    dst.write_all(&buf[..n])?;
+                    Status::Copying {
                         src,
                         dst,
-                        copied: copied + n as u64,
                         len,
-                    },
-                    Err(err) => Status::Err(Error::transfer(None, err)),
-                },
-                Err(err) => Status::Err(Error::transfer(err, None)),
-            },
-            _ => status,
+                        copied: copied + n as u64,
+                    }
+                }
+            }),
+
+            _ => Ok(status),
         }
     }
 
-    fn tick<'b>(&mut self, buf: &'b mut Vec<u8>) {
+    #[inline]
+    fn step<'b>(&mut self, buf: &'b mut Vec<u8>) -> Result {
         let status = self.status.take().unwrap();
-        self.status = Some(self.update_status(status, buf));
+        match self.update_status(status, buf) {
+            Ok(status) => {
+                self.set_status(status);
+                Ok(())
+            }
+            Err(err) => {
+                self.set_status(Status::Err);
+                Err(err)
+            }
+        }
     }
 }
 
@@ -144,16 +172,9 @@ impl Manager {
         }
     }
 
-    pub fn has_work(&self) -> bool {
-        self.current < self.transfers.len()
-    }
-
+    #[inline]
     pub fn transfers(&self) -> &[Transfer] {
         &self.transfers
-    }
-
-    pub fn current(&self) -> &Transfer {
-        &self.transfers[self.current]
     }
 
     pub fn add_transfer(&mut self, src: impl Into<PathBuf>, dst: impl Into<PathBuf>) {
@@ -164,14 +185,26 @@ impl Manager {
         })
     }
 
-    pub fn tick(&mut self) {
+    pub fn step(&mut self) -> Result<Option<&Transfer>> {
         if self.current < self.transfers.len() {
             let request = &mut self.transfers[self.current];
-            request.tick(&mut self.buf);
+            request.step(&mut self.buf)?;
             // If the request is finished, move to the next one.
             if request.finished() {
                 self.current += 1;
             }
+
+            Ok(self.transfers.get(self.current))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn try_cancel(&mut self) {
+        for transfer in self.transfers.iter_mut() {
+            // Set the status to cancelled so that any open files are dropped and the remove call has no issue.
+            transfer.set_status(Status::Cancelled);
+            let _ = fs::remove_file(&transfer.dst);
         }
     }
 }
