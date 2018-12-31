@@ -6,7 +6,7 @@ mod storage;
 
 use std::fs::File;
 use std::io::BufWriter;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use structopt::StructOpt;
 
@@ -86,18 +86,32 @@ pub fn load_or_create_index(config: &Config) -> Result<Index> {
 #[derive(StructOpt)]
 #[structopt(name = "flicks")]
 enum App {
-    #[structopt(name = "apply", about = "Apply a scan result file")]
-    Apply { scan: String },
+    #[structopt(name = "apply", about = "Apply a scan report file")]
+    Apply {
+        #[structopt(parse(from_os_str))]
+        report: PathBuf,
+    },
     #[structopt(name = "init", about = "Initialize merovingian with the given library path")]
-    Init { path: String },
+    Init {
+        #[structopt(parse(from_os_str))]
+        directory: PathBuf,
+    },
     #[structopt(name = "rehash", about = "Update fingerprints of movies and subtitles")]
     Rehash,
     #[structopt(name = "scan", about = "Scan a directory for movies")]
-    Scan { directory: String },
+    Scan {
+        #[structopt(parse(from_os_str))]
+        directory: PathBuf,
+        #[structopt(short = "o", help = "Output path for the scan report", parse(from_os_str))]
+        out: Option<PathBuf>,
+    },
     #[structopt(name = "sync", about = "Synchronize changes made on disk to the library")]
     Sync,
-    #[structopt(name = "view", about = "View a scan result file")]
-    View { scan: String },
+    #[structopt(name = "view", about = "View a scan report file")]
+    View {
+        #[structopt(parse(from_os_str))]
+        report: PathBuf,
+    },
 }
 
 fn with_config<F>(func: F) -> Result
@@ -146,23 +160,23 @@ fn main() -> Result<()> {
     use crate::cmd::*;
 
     match args {
-        App::Apply { scan } => {
-            open_all(|config, index, mut library| cmd_apply(config, &scan, &index, &mut library))?;
+        App::Apply { report } => {
+            open_all(|config, index, mut library| cmd_apply(config, report, &index, &mut library))?;
         }
-        App::Init { path } => {
-            cmd_init(&path)?;
+        App::Init { directory } => {
+            cmd_init(directory)?;
         }
         App::Rehash => {
             open_library(|_, mut library| cmd_rehash(&mut library))?;
         }
-        App::Scan { directory } => {
-            open_all(|_, index, library| cmd_scan(&directory, &index, &library))?;
+        App::Scan { directory, out } => {
+            open_all(|_, index, _| cmd_scan(&directory, out, &index))?;
         }
         App::Sync => {
             open_library(|config, mut library| cmd_sync(config, &mut library))?;
         }
-        App::View { scan } => {
-            open_all(|_, index, _| cmd_view(&scan, &index))?;
+        App::View { report } => {
+            open_all(|_, index, library| cmd_view(&report, &index, &library))?;
         }
     }
 

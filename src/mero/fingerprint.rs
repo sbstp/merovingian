@@ -8,16 +8,28 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 const BLOCK_SIZE: u64 = 64 * 1024; // 64 KiB
+const BYTE_SIZE: usize = 32;
+const HEX_SIZE: usize = BYTE_SIZE * 2;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Fingerprint(String);
+
+impl Fingerprint {
+    pub fn null() -> Fingerprint {
+        let mut fp = String::with_capacity(HEX_SIZE);
+        while fp.len() < fp.capacity() {
+            fp.push('0');
+        }
+        Fingerprint(fp)
+    }
+}
 
 fn hash(bytes: &[u8]) -> Fingerprint {
     let mut hasher = Sha256::default();
 
     hasher.input(&bytes);
 
-    let mut hash = String::with_capacity(64);
+    let mut hash = String::with_capacity(HEX_SIZE);
     let output = &hasher.result()[..];
     for byte in output {
         let _ = write!(hash, "{:02x}", byte);

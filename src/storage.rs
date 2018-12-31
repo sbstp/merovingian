@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
-use crate::mero::{Fingerprint, NonNan, Result, SubtitleFile};
+use crate::mero::{MovieFile, Result};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -69,62 +69,25 @@ impl Config {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Subtitle {
-    pub path: PathBuf,
-    pub lang: String,
-    pub ext: String,
-}
-
-impl From<SubtitleFile> for Subtitle {
-    fn from(sub: SubtitleFile) -> Subtitle {
-        Subtitle {
-            path: sub.file.path().to_owned(),
-            lang: sub.lang().to_owned(),
-            ext: sub.ext().to_owned(),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Match {
-    pub path: PathBuf,
-    pub fingerprint: Fingerprint,
-    pub score: NonNan,
-    pub title_id: u32,
-    pub subtitles: Vec<Subtitle>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Scan {
+pub struct Report {
     /// New matches found
-    pub matches: Vec<Match>,
-    /// Paths ignored because they are already in the database
-    pub ignored: Vec<PathBuf>,
-    /// Paths that were detected as duplicates
-    pub duplicates: Vec<PathBuf>,
-    /// Paths that did not match anything
-    pub unmatched: Vec<PathBuf>,
+    pub movies: Vec<MovieFile>,
 }
 
-impl Scan {
-    pub fn new() -> Scan {
-        Scan {
-            matches: vec![],
-            ignored: vec![],
-            duplicates: vec![],
-            unmatched: vec![],
-        }
+impl Report {
+    pub fn new() -> Report {
+        Report { movies: vec![] }
     }
 
-    pub fn load(path: impl AsRef<Path>) -> Result<Scan> {
+    pub fn load(path: impl AsRef<Path>) -> Result<Report> {
         let reader = BufReader::new(File::open(path.as_ref())?);
         let scan = bincode::deserialize_from(reader)?;
         Ok(scan)
     }
 
-    pub fn save(path: impl AsRef<Path>, scan: &Scan) -> Result<()> {
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let writer = BufWriter::new(File::create(path.as_ref())?);
-        bincode::serialize_into(writer, scan)?;
+        bincode::serialize_into(writer, self)?;
         Ok(())
     }
 }

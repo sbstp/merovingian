@@ -9,8 +9,10 @@ use lazy_static::lazy_static;
 use signal_hook::flag as signal;
 use signal_hook::{SIGINT, SIGTERM};
 
-use crate::mero::{fingerprint, library, utils::clean_path, Index, Library, Manager, Result, Transfer};
-use crate::storage::{Config, Scan, Subtitle};
+use crate::mero::{fingerprint, library, utils::clean_path, Index, Library, Manager, Result, SubtitleFile, Transfer};
+use crate::storage::{Config, Report};
+
+use super::view::Classified;
 
 fn make_movie_path(primary_title: &str, year: u16, ext: &str) -> PathBuf {
     let mut path = PathBuf::new();
@@ -21,7 +23,7 @@ fn make_movie_path(primary_title: &str, year: u16, ext: &str) -> PathBuf {
     path
 }
 
-fn make_subtitle_path(movie_path: &Path, subtitle: &Subtitle) -> PathBuf {
+fn make_subtitle_path(movie_path: &Path, subtitle: &SubtitleFile) -> PathBuf {
     let ext = format!("{}.{}", subtitle.lang, &subtitle.ext);
     movie_path.clone().with_extension(&ext)
 }
@@ -43,38 +45,31 @@ pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library:
 
     let path = path.as_ref();
 
-    let scan = Scan::load(path)?;
+    let report = Report::load(path)?;
+    let classified = Classified::classify(&library, report.movies);
 
     let mut finished = 0;
-    let len = scan.matches.len();
+    let len = classified.matches.len();
 
-    for mat in scan.matches {
-        if library.has_fingerprint(&mat.fingerprint) {
-            println!(
-                "Movie has already been added to the library. Skipping {}",
-                mat.path.display()
-            );
-            finished += 1;
-            continue;
-        }
-
-        println!("Starting copy for {}", mat.path.display());
+    for movie in classified.matches {
+        println!("Starting copy for {}", movie.path.display());
         println!();
 
-        let title = &index.entries[&mat.title_id];
+        let title_id_scored = movie.title_id_scored.expect("score should not be None in apply");
+        let title = index.get_title(title_id_scored.value);
 
         let mut manager = Manager::new();
 
-        let ext = mat.path.extension().and_then(|s| s.to_str()).unwrap_or("");
+        let ext = movie.path.extension().and_then(|s| s.to_str()).unwrap_or("");
         let movie_path = config
             .root_path()
             .join(make_movie_path(&title.primary_title, title.year, ext));
 
-        manager.add_transfer(&mat.path, &movie_path);
+        manager.add_transfer(&movie.path, &movie_path);
 
         let mut lib_subtitles = vec![];
 
-        for sub in mat.subtitles {
+        for sub in movie.subtitles {
             let subtitle_path = make_subtitle_path(&movie_path, &sub);
             lib_subtitles.push(library::Subtitle {
                 path: subtitle_path.to_owned(),
@@ -85,7 +80,7 @@ pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library:
 
         let mut last = Instant::now();
         loop {
-            if QUIT.load(Ordering::SeqCst) {
+            if QUIT.load(Ordering::Relaxed) {
                 // received SIGINT or SIGTERM, remove incomplete transfer
                 println!("Received quit signal, cancelling current transfer.");
                 manager.try_cancel();
@@ -120,7 +115,7 @@ pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library:
         println!("{}/{} files transfered", finished, len);
         println!("");
 
-        library.add_movie(title, movie_path, mat.fingerprint, lib_subtitles);
+        library.add_movie(title, movie_path, movie.fingerprint, lib_subtitles);
         library.commit()?;
     }
 

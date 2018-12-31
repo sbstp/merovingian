@@ -175,7 +175,7 @@ fn most_common(counter: &Counter<u32>) -> Vec<u32> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Scored<T> {
     pub score: NonNan,
     pub value: T,
@@ -189,8 +189,8 @@ impl<T> Scored<T> {
 
 #[derive(Deserialize, Serialize)]
 pub struct Index {
-    pub entries: HashMap<u32, Title>,
-    pub reverse: HashMap<FixedString, HashSet<u32>>,
+    entries: HashMap<u32, Title>,
+    reverse: HashMap<FixedString, HashSet<u32>>,
 }
 
 impl Index {
@@ -218,6 +218,10 @@ impl Index {
         let compressor = GzEncoder::new(file, Default::default());
         bincode::serialize_into(compressor, self)?;
         Ok(())
+    }
+
+    pub fn get_title(&self, title_id: u32) -> &Title {
+        &self.entries[&title_id]
     }
 
     pub fn find_all(&self, text: &str, year: Option<i32>) -> Vec<Scored<&Title>> {

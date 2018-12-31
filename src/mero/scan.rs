@@ -1,14 +1,16 @@
 use std::fs;
 use std::io::{BufReader, Read};
+use std::path::PathBuf;
 
 use chardet;
 use encoding;
 use hashbrown::HashSet;
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 use subparse::{self, SubtitleFormat};
-use whatlang::{self, Lang};
+use whatlang;
 
-use super::vfs::File;
+use super::{fingerprint, File, Fingerprint, Index, Result, Scored};
 
 lazy_static! {
     static ref VIDEO_EXT: Vec<&'static str> =
@@ -16,28 +18,20 @@ lazy_static! {
     static ref SUBTITLE_EXT: Vec<&'static str> = vec!["srt", "sub", "ssa", "ass"];
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct MovieFile {
-    pub file: File,
-    pub title: String,
-    pub year: i32,
+    pub path: PathBuf,
+    pub title_id_scored: Option<Scored<u32>>,
+    pub fingerprint: Fingerprint,
+    pub subtitles: Vec<SubtitleFile>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SubtitleFile {
-    pub file: File,
-    pub lang: Lang,
-    pub format: SubtitleFormat,
-}
-
-impl SubtitleFile {
-    pub fn lang(&self) -> &str {
-        self.lang.code()
-    }
-
-    pub fn ext(&self) -> &str {
-        &self.format.get_name()[1..4]
-    }
+    pub path: PathBuf,
+    pub lang: String,
+    pub ext: String,
+    pub fingerprint: Fingerprint,
 }
 
 fn is_video(file: &File) -> bool {
@@ -140,18 +134,22 @@ impl Scanner {
         // detect language
         let lang = whatlang::detect(&text)?.lang();
 
+        let fp = fingerprint::bytes(&self.buff);
+
         Some(SubtitleFile {
-            file: file.clone(),
-            format: format,
-            lang: lang,
+            path: file.path().to_owned(),
+            ext: format.get_name()[1..4].to_owned(),
+            lang: lang.code().to_owned(),
+            fingerprint: fp,
         })
     }
 
     /// Scan for subtitles around a movie file.
-    pub fn scan_subtitles(&mut self, movie: &File) -> Vec<SubtitleFile> {
+    fn scan_subtitles(&mut self, movie: &File) -> Vec<SubtitleFile> {
         let mut subs = vec![];
         for file in movie.siblings() {
             if is_subtitle(&file) && file.name().starts_with(movie.stem()) {
+                println!("Analyzing subtitle {}", file.path().display());
                 if let Some(sub) = self.analyze_subtitle(&file) {
                     subs.push(sub);
                 }
@@ -161,9 +159,9 @@ impl Scanner {
     }
 
     /// Scan for files that look like movies.
-    pub fn scan_movies<'i>(&mut self, root: &File) -> Vec<MovieFile> {
+    pub fn scan_movies<'i>(&mut self, root: &File, index: &Index) -> Result<Vec<MovieFile>> {
         let mut ignored: HashSet<File> = HashSet::new();
-        let mut results: Vec<MovieFile> = Vec::new();
+        let mut results: Vec<(File, MovieFile)> = Vec::new();
 
         for child in root.descendants() {
             if is_video(&child) {
@@ -182,18 +180,34 @@ impl Scanner {
                         }
                     }
 
-                    results.push(MovieFile {
-                        file: child.clone(),
-                        title: title,
-                        year: year,
-                    });
+                    let title = index.find(&title, Some(year));
+
+                    results.push((
+                        child.clone(),
+                        MovieFile {
+                            path: child.path().to_owned(),
+                            title_id_scored: title.map(|s| Scored::new(s.score, s.value.title_id)),
+                            // We use a null fingerprint here because we want to avoid fingerprinting
+                            // files that will be removed as ignored.
+                            fingerprint: Fingerprint::null(),
+                            subtitles: vec![],
+                        },
+                    ));
                 }
             }
         }
 
-        results.retain(|mf| !ignored.contains(&mf.file));
+        // Remove every file that was flagged as ignored from the list.
+        results.retain(|(file, _)| !ignored.contains(&file));
 
-        results
+        // Fingerprint and scan for subtitles for each remaining movie file.
+        for (file, movie) in results.iter_mut() {
+            println!("Scanning subtitles for {}", movie.path.display());
+            movie.fingerprint = fingerprint::file(&movie.path)?;
+            movie.subtitles = self.scan_subtitles(&file);
+        }
+
+        Ok(results.into_iter().map(|(_, movie)| movie).collect())
     }
 }
 
