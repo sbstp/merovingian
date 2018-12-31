@@ -1,4 +1,3 @@
-use std::fs::DirBuilder;
 use std::fs::File;
 use std::path::Path;
 use std::str::FromStr;
@@ -14,8 +13,6 @@ use super::error::Result;
 use super::utils::NonNan;
 
 const MIN_VOTES: u32 = 25;
-const SRC_FILE_BASICS: &str = "title.basics.tsv.gz";
-const SRC_FILE_RATINGS: &str = "title.ratings.tsv.gz";
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Title {
@@ -165,38 +162,6 @@ fn build_reverse_lookup_table(entries: &HashMap<u32, Title>) -> HashMap<FixedStr
     table
 }
 
-fn download_file(client: &reqwest::Client, url: &str, dest: impl AsRef<Path>) -> Result<()> {
-    let mut file = File::create(dest)?;
-    let mut resp = client.get(url).send()?;
-    resp.copy_to(&mut file)?;
-    Ok(())
-}
-
-fn download_file_if_missing(client: &reqwest::Client, url: &str, dest: impl AsRef<Path>) -> Result<()> {
-    if !dest.as_ref().exists() {
-        download_file(client, url, dest)?;
-    }
-    Ok(())
-}
-
-fn check_source_files(data_dir: &Path) -> Result<()> {
-    let client = reqwest::Client::new();
-
-    download_file_if_missing(
-        &client,
-        "https://datasets.imdbws.com/title.basics.tsv.gz",
-        data_dir.join(SRC_FILE_BASICS),
-    )?;
-
-    download_file_if_missing(
-        &client,
-        "https://datasets.imdbws.com/title.ratings.tsv.gz",
-        data_dir.join(SRC_FILE_RATINGS),
-    )?;
-
-    Ok(())
-}
-
 fn most_common(counter: &Counter<u32>) -> Vec<u32> {
     if let Some(&max) = counter.values().max() {
         let max = max as i64 - 1;
@@ -248,24 +213,7 @@ impl Index {
         Ok(index)
     }
 
-    pub fn load_or_create_index(data_dir: impl AsRef<Path>) -> Result<Index> {
-        let data_dir = data_dir.as_ref();
-        let index_path = data_dir.join("index.gz");
-
-        DirBuilder::new().recursive(true).create(data_dir)?;
-        check_source_files(data_dir)?;
-
-        Ok(match Index::load_index(&index_path) {
-            Ok(index) => index,
-            Err(_) => {
-                let index = Index::create_index(data_dir)?;
-                index.save(&index_path)?;
-                index
-            }
-        })
-    }
-
-    fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let file = File::create(path)?;
         let compressor = GzEncoder::new(file, Default::default());
         bincode::serialize_into(compressor, self)?;

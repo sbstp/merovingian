@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +23,6 @@ pub struct Movie {
 
 #[derive(Deserialize, Serialize)]
 pub struct Content {
-    pub root: PathBuf,
     pub movies: Vec<Movie>,
 }
 
@@ -33,13 +32,10 @@ pub struct Library {
 }
 
 impl Library {
-    pub fn create(path: impl Into<PathBuf>, root: impl Into<PathBuf>) -> Library {
+    pub fn create(path: impl Into<PathBuf>) -> Library {
         Library {
             path: path.into(),
-            content: Content {
-                root: root.into(),
-                movies: vec![],
-            },
+            content: Content { movies: vec![] },
         }
     }
 
@@ -57,10 +53,6 @@ impl Library {
         let file = BufWriter::new(File::create(&self.path)?);
         serde_json::to_writer_pretty(file, &self.content)?;
         Ok(())
-    }
-
-    pub fn root(&self) -> &Path {
-        &self.content.root
     }
 
     pub fn has_fingerprint(&self, fingeprint: &str) -> bool {

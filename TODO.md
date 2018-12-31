@@ -5,3 +5,4 @@
 * Automated testing with sample data.
 * Detect conflicting subtitles (keep bigger file size?)
 * Use ffprobe to detect codecs and resolution.
+* ~~Add init command and put the library metadata in the library directory~~

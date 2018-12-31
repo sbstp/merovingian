@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crate::mero::{fingerprint, library, utils::clean_path, Index, Library, Manager, Result, Transfer};
-use crate::storage::{Scan, Subtitle};
+use crate::storage::{Config, Scan, Subtitle};
 
 fn make_movie_path(primary_title: &str, year: u16, ext: &str) -> PathBuf {
     let mut path = PathBuf::new();
@@ -25,7 +25,7 @@ fn print_transfer(transfer: &Transfer) {
     println!();
 }
 
-pub fn cmd_apply(path: impl AsRef<Path>, index: &Index, library: &mut Library) -> Result {
+pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library: &mut Library) -> Result {
     let path = path.as_ref();
 
     let scan = Scan::load(path)?;
@@ -44,8 +44,8 @@ pub fn cmd_apply(path: impl AsRef<Path>, index: &Index, library: &mut Library) -
         let mut manager = Manager::new();
 
         let ext = mat.path.extension().and_then(|s| s.to_str()).unwrap_or("");
-        let movie_path = library
-            .root()
+        let movie_path = config
+            .root_path()
             .join(make_movie_path(&title.primary_title, title.year, ext));
 
         manager.add_transfer(&mat.path, &movie_path);

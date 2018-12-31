@@ -1,7 +1,8 @@
 use crate::mero::{Library, Result};
+use crate::storage::Config;
 
-pub fn cmd_sync(library: &mut Library) -> Result {
-    let root = library.root().to_path_buf();
+pub fn cmd_sync(config: Config, library: &mut Library) -> Result {
+    let root = config.root_path().to_path_buf();
 
     library.content.movies.retain(|m| {
         let exists = root.join(&m.path).exists();
