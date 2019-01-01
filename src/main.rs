@@ -22,6 +22,18 @@ macro_rules! flush {
     };
 }
 
+pub fn task<F, T>(task_description: impl AsRef<str>, func: F) -> T
+where
+    F: FnOnce() -> T,
+{
+    print!("{} ... ", task_description.as_ref());
+    flush!();
+    let result = func();
+    println!("done.");
+    flush!();
+    result
+}
+
 fn download_file(client: &reqwest::Client, url: &str, dest: impl AsRef<Path>) -> Result<()> {
     let mut file = BufWriter::new(File::create(dest)?);
     let mut resp = client.get(url).send()?;
@@ -31,13 +43,7 @@ fn download_file(client: &reqwest::Client, url: &str, dest: impl AsRef<Path>) ->
 
 fn download_file_if_missing(client: &reqwest::Client, url: &str, dest: impl AsRef<Path>) -> Result<()> {
     if !dest.as_ref().exists() {
-        print!("Downloading {} ...", url);
-
-        flush!();
-        download_file(client, url, dest)?;
-
-        println!("done.");
-        flush!();
+        task(format!("Downloading {}", url), || download_file(client, url, dest))?;
     }
     Ok(())
 }
@@ -66,20 +72,13 @@ pub fn load_or_create_index(config: &Config) -> Result<Index> {
 
     check_source_files(&data_dir)?;
 
-    Ok(match Index::load_index(&index_path) {
-        Ok(index) => index,
-        Err(_) => {
-            print!("Generating index... ");
-            flush!();
-
+    task("Loading index", || match Index::load_index(&index_path) {
+        Ok(index) => Ok(index),
+        Err(_) => task("Generating index", || {
             let index = Index::create_index(&data_dir)?;
             index.save(&index_path)?;
-
-            println!("done.");
-            flush!();
-
-            index
-        }
+            Ok(index)
+        }),
     })
 }
 

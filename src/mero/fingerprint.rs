@@ -11,7 +11,7 @@ const BLOCK_SIZE: u64 = 64 * 1024; // 64 KiB
 const BYTE_SIZE: usize = 32;
 const HEX_SIZE: usize = BYTE_SIZE * 2;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
 pub struct Fingerprint(String);
 
 impl Fingerprint {

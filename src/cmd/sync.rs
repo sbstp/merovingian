@@ -4,7 +4,7 @@ use crate::storage::Config;
 pub fn cmd_sync(config: Config, library: &mut Library) -> Result {
     let root = config.root_path().to_path_buf();
 
-    library.content.movies.retain(|m| {
+    library.movies_mut().retain(|m| {
         let exists = root.join(&m.path).exists();
         if !exists {
             println!("Removing movie {}", m.path.display());
@@ -12,7 +12,7 @@ pub fn cmd_sync(config: Config, library: &mut Library) -> Result {
         exists
     });
 
-    for movie in library.content.movies.iter_mut() {
+    for movie in library.movies_mut().iter_mut() {
         movie.subtitles.retain(|s| {
             let exists = root.join(&s.path).exists();
             if !exists {

@@ -2,7 +2,7 @@ use crate::mero::fingerprint;
 use crate::mero::{Library, Result};
 
 pub fn cmd_rehash(library: &mut Library) -> Result {
-    for movie in library.content.movies.iter_mut() {
+    for movie in library.movies_mut().iter_mut() {
         println!("Checking movie {}", movie.path.display());
         let fp = fingerprint::file(&movie.path)?;
         if fp != movie.fingerprint {

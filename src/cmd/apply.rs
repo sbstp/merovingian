@@ -82,7 +82,7 @@ pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library:
         loop {
             if QUIT.load(Ordering::Relaxed) {
                 // received SIGINT or SIGTERM, remove incomplete transfer
-                println!("Received quit signal, cancelling current transfer.");
+                println!("\nReceived quit signal, cancelling current transfer.");
                 manager.try_cancel();
                 return Ok(());
             }
