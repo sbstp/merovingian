@@ -1,9 +1,9 @@
 use std::fmt;
 use std::fs::{self, DirBuilder};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::PathBuf;
 
-use super::error::Result;
+use super::{Result, SafeBuffer};
 
 #[derive(Debug)]
 pub enum Status {
@@ -67,7 +67,7 @@ impl Transfer {
         }
     }
 
-    fn update_status<'b>(&self, status: Status, buf: &'b mut Vec<u8>) -> Result<Status> {
+    fn update_status<'b>(&self, status: Status, buff: &'b mut SafeBuffer) -> Result<Status> {
         match status {
             Status::Waiting => {
                 if let Some(parent) = self.dst.parent() {
@@ -109,10 +109,10 @@ impl Transfer {
                 mut dst,
                 copied,
                 len,
-            } => Ok(match src.read(buf)? {
+            } => Ok(match buff.clear_read(&mut src, 8192)? {
                 0 => Status::Copied,
                 n => {
-                    dst.write_all(&buf[..n])?;
+                    dst.write_all(&buff)?;
                     Status::Copying {
                         src,
                         dst,
@@ -127,9 +127,9 @@ impl Transfer {
     }
 
     #[inline]
-    fn step<'b>(&mut self, buf: &'b mut Vec<u8>) -> Result {
+    fn step<'b>(&mut self, buff: &'b mut SafeBuffer) -> Result {
         let status = self.status.take().unwrap();
-        match self.update_status(status, buf) {
+        match self.update_status(status, buff) {
             Ok(status) => {
                 self.set_status(status);
                 Ok(())
@@ -145,7 +145,7 @@ impl Transfer {
 pub struct Manager {
     current: usize,
     transfers: Vec<Transfer>,
-    buf: Vec<u8>,
+    buff: SafeBuffer,
 }
 
 impl fmt::Debug for Manager {
@@ -162,13 +162,7 @@ impl Manager {
         Manager {
             current: 0,
             transfers: vec![],
-            buf: {
-                let mut v = Vec::with_capacity(4096);
-                unsafe {
-                    v.set_len(v.capacity());
-                }
-                v
-            },
+            buff: SafeBuffer::new(),
         }
     }
 
@@ -188,7 +182,7 @@ impl Manager {
     pub fn step(&mut self) -> Result<Option<&Transfer>> {
         if self.current < self.transfers.len() {
             let request = &mut self.transfers[self.current];
-            request.step(&mut self.buf)?;
+            request.step(&mut self.buff)?;
             // If the request is finished, move to the next one.
             if request.finished() {
                 self.current += 1;

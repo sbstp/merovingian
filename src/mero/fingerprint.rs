@@ -1,11 +1,13 @@
 use std::cmp;
 use std::fmt::Write;
 use std::fs::File;
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, Seek, SeekFrom};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+
+use crate::mero::SafeBuffer;
 
 const BLOCK_SIZE: u64 = 64 * 1024; // 64 KiB
 const BYTE_SIZE: usize = 32;
@@ -68,19 +70,17 @@ where
 
     let (seek_pos, read_max) = calc(len);
 
-    let mut buf = Vec::with_capacity(read_max);
-    unsafe {
-        buf.set_len(buf.capacity());
-    }
-
+    let mut buff = SafeBuffer::new();
     file.seek(SeekFrom::Start(seek_pos))?;
-    file.read_exact(&mut buf[..read_max])?;
+    buff.read_exact(&mut file, read_max)?;
 
-    Ok(hash(&buf[..read_max]))
+    Ok(hash(&buff))
 }
 
 #[test]
 fn test_small() {
+    use std::io::Read;
+
     println!("{:?}", std::env::current_dir());
     let path = "testdata/fingerprint/small.bin";
     let mut f = File::open(path).unwrap();
@@ -92,6 +92,8 @@ fn test_small() {
 
 #[test]
 fn test_large() {
+    use std::io::Read;
+
     println!("{:?}", std::env::current_dir());
     let path = "testdata/fingerprint/large.bin";
     let mut f = File::open(path).unwrap();

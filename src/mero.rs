@@ -16,5 +16,5 @@ pub use self::index::{Index, Scored, Title};
 pub use self::library::{Library, Movie, Subtitle};
 pub use self::scan::{MovieFile, Scanner, SubtitleFile};
 pub use self::transfer::{Manager, Transfer};
-pub use self::utils::NonNan;
+pub use self::utils::{NonNan, SafeBuffer};
 pub use self::vfs::{walk, File};

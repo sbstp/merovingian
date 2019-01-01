@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::{BufReader, Read};
+use std::io::BufReader;
 use std::path::PathBuf;
 
 use chardet;
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use subparse::{self, SubtitleFormat};
 use whatlang;
 
-use super::{fingerprint, File, Fingerprint, Index, Result, Scored};
+use super::{fingerprint, File, Fingerprint, Index, Result, SafeBuffer, Scored};
 
 lazy_static! {
     static ref VIDEO_EXT: Vec<&'static str> =
@@ -77,30 +77,25 @@ fn parse_file_name(stem: &str) -> Option<(String, i32)> {
 }
 
 pub struct Scanner {
-    buff: Vec<u8>,
+    buff: SafeBuffer,
 }
 
 impl Scanner {
     pub fn new() -> Scanner {
         Scanner {
-            buff: Vec::with_capacity(500 * 1024), // 500 KiB should be enough for most files
+            buff: SafeBuffer::new(),
         }
     }
 
     fn analyze_subtitle(&mut self, file: &File) -> Option<SubtitleFile> {
-        self.buff.clear();
         let mut fd = BufReader::new(fs::File::open(file.path()).ok()?);
 
         // Only read the first 512 bytes to scan for the format.
         // VoSub being images, the files are really large. Since
         // these files are ignored anyway, we don't need to read them fully.
-        //
-        // Capacity of the buffer is at least 500 KiB, so set_len is safe.
-        // We set the len to 512 so that `read_exact` will read 512 bytes.
-        unsafe {
-            self.buff.set_len(512);
-        }
-        fd.read_exact(&mut self.buff[..512]).ok()?;
+        self.buff.clear();
+        self.buff.read_exact(&mut fd, 512).ok()?;
+
         let format = subparse::get_subtitle_format(&format!(".{}", file.ext().to_lowercase()), &self.buff)?;
         if format == SubtitleFormat::VobSubSub || format == SubtitleFormat::VobSubIdx {
             return None;
@@ -110,7 +105,7 @@ impl Scanner {
         // we can read it fully into a re-usable buffer. The bytes are appended
         // to the buffer, so there's no need to seek from the start and re-read
         // the bytes.
-        fd.read_to_end(&mut self.buff).ok()?;
+        self.buff.read_to_end(&mut fd).ok()?;
 
         // detect the encoding
         let (charset, _, _) = chardet::detect(&self.buff);
