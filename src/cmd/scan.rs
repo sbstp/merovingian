@@ -10,7 +10,7 @@ pub fn cmd_scan(import_path: impl AsRef<Path>, save_path: impl Into<Option<PathB
     let root = walk(import_path)?;
     let mut scanner = Scanner::new();
 
-    let mut report = Report::new();
+    let mut report = Report::new(import_path);
     report.movies = scanner.scan_movies(&root, index)?;
 
     let save_path = save_path.into().unwrap_or(PathBuf::from("scan-report.mero"));

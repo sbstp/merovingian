@@ -258,6 +258,12 @@ impl Index {
                     ),
                 };
 
+                if let Some(year) = year {
+                    if entry.year as i32 != year {
+                        score *= 0.90;
+                    }
+                }
+
                 let popularity = f64::log10(entry.vote_count as f64) / f64::log10(max_votes as f64);
                 score *= popularity;
 

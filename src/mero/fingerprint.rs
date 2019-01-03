@@ -81,7 +81,6 @@ where
 fn test_small() {
     use std::io::Read;
 
-    println!("{:?}", std::env::current_dir());
     let path = "testdata/fingerprint/small.bin";
     let mut f = File::open(path).unwrap();
     let mut buf = Vec::new();
@@ -94,7 +93,6 @@ fn test_small() {
 fn test_large() {
     use std::io::Read;
 
-    println!("{:?}", std::env::current_dir());
     let path = "testdata/fingerprint/large.bin";
     let mut f = File::open(path).unwrap();
     let mut buf = Vec::new();

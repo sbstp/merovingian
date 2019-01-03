@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use hashbrown::HashMap;
+
 use crate::mero::{Index, Library, MovieFile, Result};
 use crate::storage::Report;
 
@@ -8,6 +10,7 @@ pub struct Classified {
     pub unmatched: Vec<MovieFile>,
     pub duplicates: Vec<MovieFile>,
     pub matches: Vec<MovieFile>,
+    pub conflicts: HashMap<u32, Vec<MovieFile>>,
 }
 
 impl Classified {
@@ -15,21 +18,34 @@ impl Classified {
         let mut ignored = vec![];
         let mut unmatched = vec![];
         let mut duplicates = vec![];
-        let mut matches = vec![];
+        let mut movies_by_title: HashMap<u32, Vec<MovieFile>> = HashMap::new();
 
         for movie in movies {
             if let Some(title_id_scored) = movie.title_id_scored {
                 if library.has_fingerprint(&movie.fingerprint) {
                     ignored.push(movie);
                 } else {
-                    if library.has_title(title_id_scored.value) {
+                    let title_id = title_id_scored.value;
+
+                    if library.has_title(title_id) {
                         duplicates.push(movie);
                     } else {
-                        matches.push(movie);
+                        movies_by_title.entry(title_id).or_insert(Vec::new()).push(movie);
                     }
                 }
             } else {
                 unmatched.push(movie);
+            }
+        }
+
+        let mut matches = vec![];
+        let mut conflicts = HashMap::new();
+
+        for (title_id, titles) in movies_by_title.drain() {
+            if titles.len() <= 1 {
+                matches.extend(titles);
+            } else {
+                conflicts.insert(title_id, titles);
             }
         }
 
@@ -38,6 +54,7 @@ impl Classified {
             unmatched,
             duplicates,
             matches,
+            conflicts,
         }
     }
 }
@@ -48,21 +65,21 @@ pub fn cmd_view(path: impl AsRef<Path>, index: &Index, library: &Library) -> Res
     let report = Report::load(path)?;
     let mut classified = Classified::classify(library, report.movies);
 
-    println!("Ignored");
+    println!("Ignored (files that were already imported)");
     println!("=======");
     for movie in classified.ignored {
         println!("{}", movie.path.display());
     }
     println!();
 
-    println!("Unmatched");
+    println!("Unmatched (files that could not be matched with a movie)");
     println!("=========");
     for movie in classified.unmatched {
         println!("{}", movie.path.display());
     }
     println!();
 
-    println!("Duplicates");
+    println!("Duplicates (different copy of a movie already in the library)");
     println!("==========");
     for movie in classified.duplicates {
         println!("{}", movie.path.display());
@@ -76,7 +93,20 @@ pub fn cmd_view(path: impl AsRef<Path>, index: &Index, library: &Library) -> Res
             .score
     });
 
-    println!("Matches");
+    println!("Conflicts (different copies of the same movie, not yet in the library)");
+    println!("=========");
+    for (title_id, movies) in classified.conflicts.iter() {
+        let title = index.get_title(*title_id);
+        println!("Title: {}", title.primary_title);
+        println!("Year: {}", title.year);
+        println!("URL: https://imdb.com/title/tt{:07}/", title.title_id);
+        for movie in movies {
+            println!("Path: {}", movie.path.display());
+        }
+        println!();
+    }
+
+    println!("Matches (movies to be imported)");
     println!("=======");
     for movie in classified.matches {
         let title_id_scored = movie.title_id_scored.expect("score should not be None in print");

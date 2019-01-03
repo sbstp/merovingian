@@ -70,13 +70,16 @@ impl Config {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Report {
-    /// New matches found
+    pub path: PathBuf,
     pub movies: Vec<MovieFile>,
 }
 
 impl Report {
-    pub fn new() -> Report {
-        Report { movies: vec![] }
+    pub fn new(path: impl Into<PathBuf>) -> Report {
+        Report {
+            movies: vec![],
+            path: path.into(),
+        }
     }
 
     pub fn load(path: impl AsRef<Path>) -> Result<Report> {
