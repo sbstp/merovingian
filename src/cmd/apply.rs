@@ -9,23 +9,23 @@ use lazy_static::lazy_static;
 use signal_hook::flag as signal;
 use signal_hook::{SIGINT, SIGTERM};
 
-use crate::mero::{fingerprint, library, utils::clean_path, Index, Library, Manager, Result, SubtitleFile, Transfer};
+use crate::mero::{library, utils::clean_path, Index, Library, Manager, RelativePath, Result, SubtitleFile, Transfer};
 use crate::storage::{Config, Report};
 
 use super::view::Classified;
 
-fn make_movie_path(primary_title: &str, year: u16, ext: &str) -> PathBuf {
+fn make_movie_path(primary_title: &str, year: u16, ext: &str) -> RelativePath {
     let mut path = PathBuf::new();
     let cleaned_name = clean_path(&format!("{} ({})", primary_title, year));
     let dotted_name = cleaned_name.replace(" ", ".");
     path.push(&dotted_name);
     path.push(format!("{}.{}", dotted_name, ext));
-    path
+    RelativePath::new(path)
 }
 
-fn make_subtitle_path(movie_path: &Path, subtitle: &SubtitleFile) -> PathBuf {
+fn make_subtitle_path(movie_path: &Path, subtitle: &SubtitleFile) -> RelativePath {
     let ext = format!("{}.{}", subtitle.lang, &subtitle.ext);
-    movie_path.clone().with_extension(&ext)
+    RelativePath::new(movie_path.clone().with_extension(&ext))
 }
 
 fn print_transfer(transfer: &Transfer) {
@@ -50,6 +50,7 @@ pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library:
 
     let mut finished = 0;
     let len = classified.matches.len();
+    let root_path = config.root_path();
 
     for movie in classified.matches {
         println!("Starting copy for {}", movie.path.display());
@@ -61,21 +62,21 @@ pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library:
         let mut manager = Manager::new();
 
         let ext = movie.path.extension().and_then(|s| s.to_str()).unwrap_or("");
-        let movie_path = config
-            .root_path()
-            .join(make_movie_path(&title.primary_title, title.year, ext));
+        let movie_path = make_movie_path(&title.primary_title, title.year, ext);
 
-        manager.add_transfer(&movie.path, &movie_path);
+        manager.add_transfer(&movie.path, root_path.join(&movie_path));
 
         let mut lib_subtitles = vec![];
 
         for sub in movie.subtitles {
             let subtitle_path = make_subtitle_path(&movie_path, &sub);
+
+            manager.add_transfer(&sub.path, root_path.join(&subtitle_path));
+
             lib_subtitles.push(library::Subtitle {
-                path: subtitle_path.to_owned(),
-                fingerprint: fingerprint::file(&sub.path)?,
+                path: subtitle_path,
+                fingerprint: sub.fingerprint,
             });
-            manager.add_transfer(sub.path, subtitle_path);
         }
 
         let mut last = Instant::now();

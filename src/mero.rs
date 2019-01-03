@@ -13,7 +13,7 @@ pub mod vfs;
 pub use self::error::{Error, Result};
 pub use self::fingerprint::Fingerprint;
 pub use self::index::{Index, Scored, Title};
-pub use self::library::{Library, Movie, Subtitle};
+pub use self::library::{Library, Movie, RelativePath, Subtitle};
 pub use self::scan::{MovieFile, Scanner, SubtitleFile};
 pub use self::transfer::{Manager, Transfer};
 pub use self::utils::{NonNan, SafeBuffer};

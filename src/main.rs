@@ -166,7 +166,7 @@ fn main() -> Result<()> {
             cmd_init(directory)?;
         }
         App::Rehash => {
-            open_library(|_, mut library| cmd_rehash(&mut library))?;
+            open_library(|config, mut library| cmd_rehash(config, &mut library))?;
         }
         App::Scan { directory, out } => {
             open_all(|_, index, _| cmd_scan(&directory, out, &index))?;

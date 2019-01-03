@@ -1,23 +1,57 @@
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::ops::{Deref, DerefMut};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
 use super::{index, Fingerprint, Result};
 
+#[derive(Deserialize, Serialize, Eq, PartialEq, Clone, Debug)]
+pub struct RelativePath(PathBuf);
+
+impl RelativePath {
+    pub fn new(path: impl Into<PathBuf>) -> RelativePath {
+        let path = path.into();
+        if path.is_absolute() {
+            panic!("relative path created with absolute path");
+        }
+        RelativePath(path)
+    }
+
+    pub fn with_root(root: impl AsRef<Path>, path: impl AsRef<Path>) -> RelativePath {
+        let root = root.as_ref();
+        let path = path.as_ref();
+        let rel_path = path.strip_prefix(root).expect("path does not start with root");
+        RelativePath::new(rel_path)
+    }
+}
+
+impl Deref for RelativePath {
+    type Target = Path;
+
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl AsRef<Path> for RelativePath {
+    fn as_ref(&self) -> &Path {
+        &self.0
+    }
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct Subtitle {
-    pub path: PathBuf,
+    pub path: RelativePath,
     pub fingerprint: Fingerprint,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct Movie {
     pub title_id: u32,
-    pub path: PathBuf,
+    pub path: RelativePath,
     pub subtitles: Vec<Subtitle>,
     pub fingerprint: Fingerprint,
 }
@@ -114,7 +148,7 @@ impl Library {
     pub fn add_movie(
         &mut self,
         title: &index::Title,
-        path: impl Into<PathBuf>,
+        path: RelativePath,
         fingeprint: Fingerprint,
         subtitles: impl Into<Vec<Subtitle>>,
     ) {
@@ -123,7 +157,7 @@ impl Library {
 
         self.content.movies.push(Movie {
             title_id: title.title_id,
-            path: path.into(),
+            path: path,
             fingerprint: fingeprint,
             subtitles: subtitles.into(),
         });
@@ -151,7 +185,7 @@ fn test_consistent_sets() {
         runtime: 120,
         vote_count: 5000,
     };
-    lib.add_movie(&title, "foo.mkv", Fingerprint::null(), vec![]);
+    lib.add_movie(&title, RelativePath::new("foo.mkv"), Fingerprint::null(), vec![]);
 
     for movie in lib.movies_mut().iter_mut() {
         movie.title_id = 200;
