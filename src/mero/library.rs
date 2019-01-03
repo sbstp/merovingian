@@ -50,10 +50,15 @@ pub struct Subtitle {
 
 #[derive(Deserialize, Serialize)]
 pub struct Movie {
-    pub title_id: u32,
     pub path: RelativePath,
-    pub subtitles: Vec<Subtitle>,
     pub fingerprint: Fingerprint,
+    pub subtitles: Vec<Subtitle>,
+    pub images: Vec<RelativePath>,
+
+    pub title_id: u32,
+    pub primary_title: String,
+    pub original_title: Option<String>,
+    pub year: u16,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -156,10 +161,15 @@ impl Library {
         self.titles.insert(title.title_id);
 
         self.content.movies.push(Movie {
-            title_id: title.title_id,
             path: path,
             fingerprint: fingeprint,
             subtitles: subtitles.into(),
+            images: vec![],
+
+            title_id: title.title_id,
+            primary_title: title.primary_title.clone(),
+            original_title: title.original_title.clone(),
+            year: title.year,
         });
     }
 
