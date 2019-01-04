@@ -1,4 +1,9 @@
 # Merovingian
+Merovingian is a movie library manager, similar to `beets`. It can import movies from any location into a single, organized folder and rename them properly. It also supports management of subtitles and it can automatically detect the language of text-based subtitles. Files are copied using hard links when the import folder and the library folder are on the same device, making the import extremely fast and cheap. Files in the import folder can also be deleted without affecting the library folder.
+
+Files are fingerprinted using a really fast method during the scan which means that files already in the library aren't imported over and over again. This means that a download folder, for instance, can be imported multiple times over time as new files are added and removed from it and only new movie files will be imported.
+
+Matching and renaming is done using IMDB's publicly available dataset. It is downloaded automatically the first time it is needed (roughly 150MB in size). A small and efficient index is then produced with this dataset.
 
 ## Features
 * Automatically detect movie files
@@ -50,3 +55,6 @@ mero view scan.mero | less
 # if the scan is satisfactory, import
 mero apply scan.mero
 ```
+
+## License
+AGPL 3.0, see `LICENSE`
