@@ -14,9 +14,22 @@ use super::utils::NonNan;
 
 const MIN_VOTES: u32 = 25;
 
+#[derive(Debug, Deserialize, Serialize, Copy, Clone, Eq, PartialEq, Hash)]
+pub struct TitleId(u32);
+
+impl TitleId {
+    pub fn new(id: u32) -> TitleId {
+        TitleId(id)
+    }
+
+    pub fn full(&self) -> String {
+        format!("tt{:07}", self.0)
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Title {
-    pub title_id: u32,
+    pub title_id: TitleId,
     pub primary_title: String,
     pub original_title: Option<String>,
     pub year: u16,
@@ -40,8 +53,8 @@ fn parse_none<T: FromStr>(record: &str) -> Option<T> {
     }
 }
 
-fn parse_id(record: &str) -> Result<u32> {
-    Ok(record[2..].parse()?)
+fn parse_id(record: &str) -> Result<TitleId> {
+    Ok(TitleId(record[2..].parse()?))
 }
 
 fn is_valid_type(title_type: &str) -> bool {
@@ -51,22 +64,22 @@ fn is_valid_type(title_type: &str) -> bool {
     }
 }
 
-fn build_entries_table(data_dir_path: &Path) -> Result<HashMap<u32, Title>> {
+fn build_titles_table(data_dir_path: &Path) -> Result<HashMap<TitleId, Title>> {
     let mut ratings_reader = open_csv(&data_dir_path.join("title.ratings.tsv.gz"))?;
     let mut titles_reader = open_csv(&data_dir_path.join("title.basics.tsv.gz"))?;
 
-    let mut votes_table: HashMap<u32, u32> = HashMap::new();
+    let mut votes_table: HashMap<TitleId, u32> = HashMap::new();
 
     for record in ratings_reader.records() {
         let record = record?;
-        let title_id: u32 = parse_id(&record[0])?;
+        let title_id = parse_id(&record[0])?;
         let vote_count: u32 = record[2].parse()?;
         if vote_count >= MIN_VOTES {
             votes_table.insert(title_id, vote_count);
         }
     }
 
-    let mut entries_table: HashMap<u32, Title> = HashMap::new();
+    let mut titles_table: HashMap<TitleId, Title> = HashMap::new();
 
     for record in titles_reader.records() {
         let record = record?;
@@ -81,8 +94,8 @@ fn build_entries_table(data_dir_path: &Path) -> Result<HashMap<u32, Title>> {
 
         match (is_valid_type(title_type), adult, start_year, runtime, vote_count) {
             (true, "0", Some(start_year), Some(runtime), Some(vote_count)) => {
-                let entry = Title {
-                    title_id,
+                let title = Title {
+                    title_id: title_id,
                     primary_title: primary_title.into(),
                     original_title: if primary_title != original_title {
                         Some(original_title.into())
@@ -93,14 +106,14 @@ fn build_entries_table(data_dir_path: &Path) -> Result<HashMap<u32, Title>> {
                     runtime: runtime,
                     vote_count: *vote_count,
                 };
-                entries_table.insert(title_id, entry);
+                titles_table.insert(title_id, title);
             }
             _ => {}
         }
     }
 
-    entries_table.shrink_to_fit();
-    Ok(entries_table)
+    titles_table.shrink_to_fit();
+    Ok(titles_table)
 }
 
 // Token splitter must be a superset of the filter_path function
@@ -138,23 +151,23 @@ fn text_to_tokens(text: &str, tokens: &mut Vec<FixedString>) {
     tokens.dedup();
 }
 
-fn build_reverse_lookup_table(entries: &HashMap<u32, Title>) -> HashMap<FixedString, HashSet<u32>> {
+fn build_reverse_lookup_table(titles: &HashMap<TitleId, Title>) -> HashMap<FixedString, HashSet<TitleId>> {
     let mut table = HashMap::new();
     let mut tokens = Vec::new();
 
-    for entry in entries.values() {
+    for title in titles.values() {
         let mut index_title = |text: &str| {
             text_to_tokens(&text, &mut tokens);
             for tag in tokens.drain(..) {
                 table
                     .entry(tag)
                     .or_insert_with(|| HashSet::new())
-                    .insert(entry.title_id);
+                    .insert(title.title_id);
             }
         };
 
-        index_title(&entry.primary_title);
-        if let Some(original_title) = &entry.original_title {
+        index_title(&title.primary_title);
+        if let Some(original_title) = &title.original_title {
             index_title(&original_title);
         }
     }
@@ -162,7 +175,7 @@ fn build_reverse_lookup_table(entries: &HashMap<u32, Title>) -> HashMap<FixedStr
     table
 }
 
-fn most_common(counter: &Counter<u32>) -> Vec<u32> {
+fn most_common(counter: &Counter<TitleId>) -> Vec<TitleId> {
     if let Some(&max) = counter.values().max() {
         let max = max as i64 - 1;
         counter
@@ -189,16 +202,16 @@ impl<T> Scored<T> {
 
 #[derive(Deserialize, Serialize)]
 pub struct Index {
-    entries: HashMap<u32, Title>,
-    reverse: HashMap<FixedString, HashSet<u32>>,
+    titles: HashMap<TitleId, Title>,
+    reverse: HashMap<FixedString, HashSet<TitleId>>,
 }
 
 impl Index {
     pub fn create_index(data_dir: &Path) -> Result<Index> {
-        let entries = build_entries_table(data_dir)?;
-        let reverse = build_reverse_lookup_table(&entries);
+        let titles = build_titles_table(data_dir)?;
+        let reverse = build_reverse_lookup_table(&titles);
 
-        Ok(Index { entries, reverse })
+        Ok(Index { titles, reverse })
     }
 
     pub fn load_index(path: impl AsRef<Path>) -> Result<Index> {
@@ -206,7 +219,7 @@ impl Index {
         let decompressor = GzDecoder::new(file);
         let mut index: Index = bincode::deserialize_from(decompressor)?;
 
-        index.entries.shrink_to_fit();
+        index.titles.shrink_to_fit();
         index.reverse.shrink_to_fit();
         index.reverse.values_mut().for_each(|bucket| bucket.shrink_to_fit());
 
@@ -220,8 +233,8 @@ impl Index {
         Ok(())
     }
 
-    pub fn get_title(&self, title_id: u32) -> &Title {
-        &self.entries[&title_id]
+    pub fn get_title(&self, title_id: TitleId) -> &Title {
+        &self.titles[&title_id]
     }
 
     pub fn find_all(&self, text: &str, year: Option<i32>) -> Vec<Scored<&Title>> {
@@ -230,7 +243,7 @@ impl Index {
 
         text_to_tokens(&text, &mut tokens);
 
-        let mut matches: Counter<u32> = Counter::new();
+        let mut matches: Counter<TitleId> = Counter::new();
         for token in tokens.drain(..) {
             if !is_ignored_token(&token) {
                 if let Some(title_ids) = self.reverse.get(&token) {
@@ -239,38 +252,38 @@ impl Index {
             }
         }
 
-        let mut entries: Vec<&Title> = most_common(&matches)
+        let mut titles: Vec<&Title> = most_common(&matches)
             .into_iter()
-            .map(|title_id| &self.entries[&title_id])
+            .map(|title_id| &self.titles[&title_id])
             .collect();
 
         if let Some(year) = year {
-            entries.retain(|t| (t.year as i32 - year).abs() <= 1);
+            titles.retain(|t| (t.year as i32 - year).abs() <= 1);
         }
 
-        if let Some(max_votes) = entries.iter().map(|entry| entry.vote_count).max() {
-            let scoring_func = |entry: &Title| -> NonNan {
-                let mut score = match &entry.original_title {
-                    None => strsim::normalized_levenshtein(&entry.primary_title.to_lowercase(), &text),
+        if let Some(max_votes) = titles.iter().map(|title| title.vote_count).max() {
+            let scoring_func = |title: &Title| -> NonNan {
+                let mut score = match &title.original_title {
+                    None => strsim::normalized_levenshtein(&title.primary_title.to_lowercase(), &text),
                     Some(original_title) => f64::max(
-                        strsim::normalized_levenshtein(&entry.primary_title.to_lowercase(), &text),
+                        strsim::normalized_levenshtein(&title.primary_title.to_lowercase(), &text),
                         strsim::normalized_levenshtein(&original_title.to_lowercase(), &text),
                     ),
                 };
 
                 if let Some(year) = year {
-                    if entry.year as i32 != year {
+                    if title.year as i32 != year {
                         score *= 0.90;
                     }
                 }
 
-                let popularity = f64::log10(entry.vote_count as f64) / f64::log10(max_votes as f64);
+                let popularity = f64::log10(title.vote_count as f64) / f64::log10(max_votes as f64);
                 score *= popularity;
 
                 NonNan::new(score)
             };
 
-            let mut scored: Vec<Scored<&Title>> = entries.iter().map(|&e| Scored::new(scoring_func(e), e)).collect();
+            let mut scored: Vec<Scored<&Title>> = titles.iter().map(|&e| Scored::new(scoring_func(e), e)).collect();
             scored.sort_by_key(|s| std::cmp::Reverse(s.score));
             scored
         } else {

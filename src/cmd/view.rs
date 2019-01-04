@@ -2,7 +2,7 @@ use std::path::Path;
 
 use hashbrown::HashMap;
 
-use crate::mero::{Index, Library, MovieFile, Result};
+use crate::mero::{Index, Library, MovieFile, Result, TitleId};
 use crate::storage::Report;
 
 pub struct Classified {
@@ -10,7 +10,7 @@ pub struct Classified {
     pub unmatched: Vec<MovieFile>,
     pub duplicates: Vec<MovieFile>,
     pub matches: Vec<MovieFile>,
-    pub conflicts: HashMap<u32, Vec<MovieFile>>,
+    pub conflicts: HashMap<TitleId, Vec<MovieFile>>,
 }
 
 impl Classified {
@@ -18,7 +18,7 @@ impl Classified {
         let mut ignored = vec![];
         let mut unmatched = vec![];
         let mut duplicates = vec![];
-        let mut movies_by_title: HashMap<u32, Vec<MovieFile>> = HashMap::new();
+        let mut movies_by_title = HashMap::new();
 
         for movie in movies {
             if let Some(title_id_scored) = movie.title_id_scored {
@@ -99,7 +99,7 @@ pub fn cmd_view(path: impl AsRef<Path>, index: &Index, library: &Library) -> Res
         let title = index.get_title(*title_id);
         println!("Title: {}", title.primary_title);
         println!("Year: {}", title.year);
-        println!("URL: https://imdb.com/title/tt{:07}/", title.title_id);
+        println!("URL: https://imdb.com/title/tt{:07}/", title.title_id.full());
         for movie in movies {
             println!("Path: {}", movie.path.display());
         }
@@ -116,7 +116,7 @@ pub fn cmd_view(path: impl AsRef<Path>, index: &Index, library: &Library) -> Res
         println!("Name: {}", movie.path.file_name().and_then(|s| s.to_str()).unwrap());
         println!("Title: {}", title.primary_title);
         println!("Year: {}", title.year);
-        println!("URL: https://imdb.com/title/tt{:07}/", title.title_id);
+        println!("URL: https://imdb.com/title/tt{:07}/", title.title_id.full());
         println!("Score: {:0.3}", score);
         println!();
     }

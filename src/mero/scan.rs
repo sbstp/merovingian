@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use subparse::{self, SubtitleFormat};
 use whatlang;
 
-use super::{fingerprint, File, Fingerprint, Index, Result, SafeBuffer, Scored};
+use super::{fingerprint, File, Fingerprint, Index, Result, SafeBuffer, Scored, TitleId};
 
 lazy_static! {
     static ref VIDEO_EXT: Vec<&'static str> =
@@ -21,7 +21,7 @@ lazy_static! {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MovieFile {
     pub path: PathBuf,
-    pub title_id_scored: Option<Scored<u32>>,
+    pub title_id_scored: Option<Scored<TitleId>>,
     pub fingerprint: Fingerprint,
     pub subtitles: Vec<SubtitleFile>,
 }

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
-use super::{index, Fingerprint, Result};
+use super::{index, Fingerprint, Result, TitleId};
 
 #[derive(Deserialize, Serialize, Eq, PartialEq, Clone, Debug)]
 pub struct RelativePath(PathBuf);
@@ -55,7 +55,7 @@ pub struct Movie {
     pub subtitles: Vec<Subtitle>,
     pub images: Vec<RelativePath>,
 
-    pub title_id: u32,
+    pub title_id: TitleId,
     pub primary_title: String,
     pub original_title: Option<String>,
     pub year: u16,
@@ -95,7 +95,7 @@ pub struct Library {
     path: PathBuf,
     content: Content,
     fingerprints: HashSet<Fingerprint>,
-    titles: HashSet<u32>,
+    titles: HashSet<TitleId>,
 }
 
 impl Library {
@@ -146,7 +146,7 @@ impl Library {
     }
 
     #[inline]
-    pub fn has_title(&self, title_id: u32) -> bool {
+    pub fn has_title(&self, title_id: TitleId) -> bool {
         self.titles.contains(&title_id)
     }
 
@@ -188,7 +188,7 @@ impl Library {
 fn test_consistent_sets() {
     let mut lib = Library::create("lib.json");
     let title = index::Title {
-        title_id: 100,
+        title_id: TitleId::new(100),
         primary_title: String::new(),
         original_title: None,
         year: 2010,
@@ -198,8 +198,8 @@ fn test_consistent_sets() {
     lib.add_movie(&title, RelativePath::new("foo.mkv"), Fingerprint::null(), vec![]);
 
     for movie in lib.movies_mut().iter_mut() {
-        movie.title_id = 200;
+        movie.title_id = TitleId::new(200);
     }
 
-    assert!(lib.has_title(200));
+    assert!(lib.has_title(TitleId::new(200)));
 }
