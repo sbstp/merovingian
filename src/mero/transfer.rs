@@ -110,7 +110,10 @@ impl Transfer {
                 copied,
                 len,
             } => Ok(match buff.clear_read(&mut src, 8192)? {
-                0 => Status::Copied,
+                0 => {
+                    dst.sync_all()?;
+                    Status::Copied
+                }
                 n => {
                     dst.write_all(&buff)?;
                     Status::Copying {
