@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
+use super::utils::{VecAccess, VecAccessKey, VecAccessKeyIter};
 use super::{index, Fingerprint, Result, TitleId};
 
 #[derive(Deserialize, Serialize, Eq, PartialEq, Clone, Debug)]
@@ -66,31 +67,6 @@ pub struct Content {
     pub movies: Vec<Movie>,
 }
 
-pub struct MoviesMut<'l>(&'l mut Library);
-
-impl Deref for MoviesMut<'_> {
-    type Target = Vec<Movie>;
-
-    #[inline]
-    fn deref(&self) -> &Vec<Movie> {
-        &self.0.content.movies
-    }
-}
-
-impl DerefMut for MoviesMut<'_> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Vec<Movie> {
-        &mut self.0.content.movies
-    }
-}
-
-impl Drop for MoviesMut<'_> {
-    #[inline]
-    fn drop(&mut self) {
-        self.0.rebuild_index();
-    }
-}
-
 pub struct Library {
     path: PathBuf,
     content: Content,
@@ -124,14 +100,28 @@ impl Library {
         Ok(library)
     }
 
-    #[inline]
-    pub fn movies(&self) -> &[Movie] {
-        &self.content.movies
+    pub fn movie_access_keys(&self) -> VecAccessKeyIter {
+        self.content.movies.access_keys()
     }
 
-    #[inline]
-    pub fn movies_mut(&mut self) -> MoviesMut {
-        MoviesMut(self)
+    pub fn movie(&self, key: VecAccessKey) -> &Movie {
+        &self.content.movies.access(key)
+    }
+
+    pub fn movie_mut(&mut self, key: VecAccessKey) -> MovieMutGuard {
+        let movie = self.content.movies.access(key);
+
+        self.fingerprints.remove(&movie.fingerprint);
+        self.titles.remove(&movie.title_id);
+
+        MovieMutGuard {
+            library: self,
+            key: key,
+        }
+    }
+
+    pub fn movies_mut(&mut self) -> MoviesMutGuard {
+        MoviesMutGuard(self)
     }
 
     pub fn commit(&self) -> Result<()> {
@@ -184,8 +174,83 @@ impl Library {
     }
 }
 
+/// Guard meant to update the fingerprints and and titles sets after updating a movie.
+pub struct MovieMutGuard<'l> {
+    library: &'l mut Library,
+    key: VecAccessKey,
+}
+
+impl Deref for MovieMutGuard<'_> {
+    type Target = Movie;
+
+    #[inline]
+    fn deref(&self) -> &Movie {
+        self.library.content.movies.access(self.key)
+    }
+}
+
+impl DerefMut for MovieMutGuard<'_> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Movie {
+        self.library.content.movies.access_mut(self.key)
+    }
+}
+
+impl Drop for MovieMutGuard<'_> {
+    #[inline]
+    fn drop(&mut self) {
+        self.library.fingerprints.insert(self.fingerprint.clone());
+        self.library.titles.insert(self.title_id);
+    }
+}
+
+pub struct MoviesMutGuard<'l>(&'l mut Library);
+
+impl Deref for MoviesMutGuard<'_> {
+    type Target = Vec<Movie>;
+
+    #[inline]
+    fn deref(&self) -> &Vec<Movie> {
+        &self.0.content.movies
+    }
+}
+
+impl DerefMut for MoviesMutGuard<'_> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Vec<Movie> {
+        &mut self.0.content.movies
+    }
+}
+
+impl Drop for MoviesMutGuard<'_> {
+    #[inline]
+    fn drop(&mut self) {
+        self.0.rebuild_index();
+    }
+}
+
 #[test]
-fn test_consistent_sets() {
+fn test_movie_mut() {
+    let mut lib = Library::create("lib.json");
+    let title = index::Title {
+        title_id: TitleId::new(100),
+        primary_title: String::new(),
+        original_title: None,
+        year: 2010,
+        runtime: 120,
+        vote_count: 5000,
+    };
+    lib.add_movie(&title, RelativePath::new("foo.mkv"), Fingerprint::null(), vec![]);
+
+    for key in lib.movie_access_keys() {
+        lib.movie_mut(key).title_id = TitleId::new(200);
+    }
+
+    assert!(lib.has_title(TitleId::new(200)));
+}
+
+#[test]
+fn test_movies_mut() {
     let mut lib = Library::create("lib.json");
     let title = index::Title {
         title_id: TitleId::new(100),

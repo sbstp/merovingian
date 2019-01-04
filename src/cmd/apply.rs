@@ -19,13 +19,13 @@ fn make_movie_path(primary_title: &str, year: u16, ext: &str) -> RelativePath {
     let cleaned_name = clean_path(&format!("{} ({})", primary_title, year));
     let dotted_name = cleaned_name.replace(" ", ".");
     path.push(&dotted_name);
-    path.push(format!("{}.{}", dotted_name, ext));
+    path.push(format!("{}.{}", dotted_name, ext.to_lowercase()));
     RelativePath::new(path)
 }
 
 fn make_subtitle_path(movie_path: &Path, subtitle: &SubtitleFile) -> RelativePath {
     let ext = format!("{}.{}", subtitle.lang, &subtitle.ext);
-    RelativePath::new(movie_path.clone().with_extension(&ext))
+    RelativePath::new(movie_path.with_extension(&ext))
 }
 
 fn print_transfer(transfer: &Transfer) {

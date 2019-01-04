@@ -90,6 +90,8 @@ enum App {
         #[structopt(parse(from_os_str))]
         report: PathBuf,
     },
+    #[structopt(name = "images", about = "Download images for movies in the database")]
+    Images,
     #[structopt(name = "init", about = "Initialize merovingian with the given library path")]
     Init {
         #[structopt(parse(from_os_str))]
@@ -161,6 +163,9 @@ fn main() -> Result<()> {
     match args {
         App::Apply { report } => {
             open_all(|config, index, mut library| cmd_apply(config, report, &index, &mut library))?;
+        }
+        App::Images => {
+            open_library(|config, mut library| cmd_images(config, &mut library))?;
         }
         App::Init { directory } => {
             cmd_init(directory)?;

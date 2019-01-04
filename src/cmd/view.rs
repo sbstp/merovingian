@@ -99,7 +99,7 @@ pub fn cmd_view(path: impl AsRef<Path>, index: &Index, library: &Library) -> Res
         let title = index.get_title(*title_id);
         println!("Title: {}", title.primary_title);
         println!("Year: {}", title.year);
-        println!("URL: https://imdb.com/title/tt{:07}/", title.title_id.full());
+        println!("URL: https://imdb.com/title/{}/", title.title_id.full());
         for movie in movies {
             println!("Path: {}", movie.path.display());
         }
@@ -116,7 +116,7 @@ pub fn cmd_view(path: impl AsRef<Path>, index: &Index, library: &Library) -> Res
         println!("Name: {}", movie.path.file_name().and_then(|s| s.to_str()).unwrap());
         println!("Title: {}", title.primary_title);
         println!("Year: {}", title.year);
-        println!("URL: https://imdb.com/title/tt{:07}/", title.title_id.full());
+        println!("URL: https://imdb.com/title/{}/", title.title_id.full());
         println!("Score: {:0.3}", score);
         println!();
     }

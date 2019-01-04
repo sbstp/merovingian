@@ -5,7 +5,9 @@ use crate::storage::Config;
 pub fn cmd_rehash(config: Config, library: &mut Library) -> Result {
     let root_path = config.root_path();
 
-    for movie in library.movies_mut().iter_mut() {
+    for key in library.movie_access_keys() {
+        let mut movie = library.movie_mut(key);
+
         println!("Checking movie {}", movie.path.display());
         let fp = fingerprint::file(root_path.join(&movie.path))?;
 
@@ -24,6 +26,9 @@ pub fn cmd_rehash(config: Config, library: &mut Library) -> Result {
                 sub.fingerprint = fp;
             }
         }
+
+        drop(movie);
+        library.commit()?;
     }
 
     library.commit()?;
