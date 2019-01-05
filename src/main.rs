@@ -97,6 +97,17 @@ enum App {
         #[structopt(parse(from_os_str))]
         directory: PathBuf,
     },
+    #[structopt(name = "query", about = "")]
+    Query {
+        #[structopt(long = "title", help = "Title contains")]
+        title: Option<String>,
+        #[structopt(long = "year", help = "Exact year")]
+        year: Option<u16>,
+        #[structopt(long = "year-gte", help = "Year greater than or equal to")]
+        year_gte: Option<u16>,
+        #[structopt(long = "year-lte", help = "Year less than or equal to")]
+        year_lte: Option<u16>,
+    },
     #[structopt(name = "rehash", about = "Update fingerprints of movies and subtitles")]
     Rehash,
     #[structopt(name = "scan", about = "Scan a directory for movies")]
@@ -106,6 +117,8 @@ enum App {
         #[structopt(short = "o", help = "Output path for the scan report", parse(from_os_str))]
         out: Option<PathBuf>,
     },
+    #[structopt(name = "stats", about = "View stats about the library")]
+    Stats,
     #[structopt(name = "sync", about = "Synchronize changes made on disk to the library")]
     Sync,
     #[structopt(name = "view", about = "View a scan report file")]
@@ -170,11 +183,22 @@ fn main() -> Result<()> {
         App::Init { directory } => {
             cmd_init(directory)?;
         }
+        App::Query {
+            title,
+            year,
+            year_gte,
+            year_lte,
+        } => {
+            open_library(|_, library| cmd_query(&library, title, year, year_gte, year_lte))?;
+        }
         App::Rehash => {
             open_library(|config, mut library| cmd_rehash(config, &mut library))?;
         }
         App::Scan { directory, out } => {
             open_all(|config, index, _| cmd_scan(&directory, out, config, &index))?;
+        }
+        App::Stats => {
+            open_library(|_, library| cmd_stats(&library))?;
         }
         App::Sync => {
             open_library(|config, mut library| cmd_sync(config, &mut library))?;

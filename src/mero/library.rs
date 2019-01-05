@@ -102,6 +102,10 @@ impl Library {
         &self.content.movies.access(key)
     }
 
+    pub fn movies(&self) -> &[Movie] {
+        &self.content.movies
+    }
+
     pub fn movie_mut(&mut self, key: VecAccessKey) -> MovieMutGuard {
         let movie = self.content.movies.access(key);
 
