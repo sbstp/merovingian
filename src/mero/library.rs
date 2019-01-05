@@ -1,13 +1,11 @@
-use std::fs::File;
-use std::io::{BufReader, BufWriter};
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
 use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
-use super::utils::{VecAccess, VecAccessKey, VecAccessKeyIter};
-use super::{index, Fingerprint, Result, TitleId};
+use super::utils::{self, VecAccess, VecAccessKey, VecAccessKeyIter};
+use super::{Fingerprint, MovieIdentity, Result, TitleId};
 
 #[derive(Deserialize, Serialize, Eq, PartialEq, Clone, Debug)]
 pub struct RelativePath(PathBuf);
@@ -55,11 +53,7 @@ pub struct Movie {
     pub fingerprint: Fingerprint,
     pub subtitles: Vec<Subtitle>,
     pub images: Vec<RelativePath>,
-
-    pub title_id: TitleId,
-    pub primary_title: String,
-    pub original_title: Option<String>,
-    pub year: u16,
+    pub identity: MovieIdentity,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -86,11 +80,11 @@ impl Library {
 
     pub fn open(path: impl Into<PathBuf>) -> Result<Library> {
         let path = path.into();
-        let file = BufReader::new(File::open(&path)?);
+        let content = utils::deserialize_bin_gz(&path)?;
 
         let mut library = Library {
             path: path.into(),
-            content: serde_json::from_reader(file)?,
+            content: content,
             fingerprints: HashSet::new(),
             titles: HashSet::new(),
         };
@@ -112,7 +106,7 @@ impl Library {
         let movie = self.content.movies.access(key);
 
         self.fingerprints.remove(&movie.fingerprint);
-        self.titles.remove(&movie.title_id);
+        self.titles.remove(&movie.identity.title.title_id);
 
         MovieMutGuard {
             library: self,
@@ -125,9 +119,7 @@ impl Library {
     }
 
     pub fn commit(&self) -> Result<()> {
-        let file = BufWriter::new(File::create(&self.path)?);
-        serde_json::to_writer_pretty(file, &self.content)?;
-        Ok(())
+        utils::serialize_bin_gz(&self.path, &self.content)
     }
 
     #[inline]
@@ -142,24 +134,20 @@ impl Library {
 
     pub fn add_movie(
         &mut self,
-        title: &index::Title,
+        identity: &MovieIdentity,
         path: RelativePath,
         fingeprint: Fingerprint,
         subtitles: impl Into<Vec<Subtitle>>,
     ) {
         self.fingerprints.insert(fingeprint.clone());
-        self.titles.insert(title.title_id);
+        self.titles.insert(identity.title.title_id);
 
         self.content.movies.push(Movie {
             path: path,
             fingerprint: fingeprint,
             subtitles: subtitles.into(),
             images: vec![],
-
-            title_id: title.title_id,
-            primary_title: title.primary_title.clone(),
-            original_title: title.original_title.clone(),
-            year: title.year,
+            identity: identity.clone(),
         });
     }
 
@@ -169,7 +157,7 @@ impl Library {
 
         for movie in self.content.movies.iter() {
             self.fingerprints.insert(movie.fingerprint.clone());
-            self.titles.insert(movie.title_id);
+            self.titles.insert(movie.identity.title.title_id);
         }
     }
 }
@@ -200,7 +188,7 @@ impl Drop for MovieMutGuard<'_> {
     #[inline]
     fn drop(&mut self) {
         self.library.fingerprints.insert(self.fingerprint.clone());
-        self.library.titles.insert(self.title_id);
+        self.library.titles.insert(self.identity.title.title_id);
     }
 }
 
@@ -229,42 +217,71 @@ impl Drop for MoviesMutGuard<'_> {
     }
 }
 
-#[test]
-fn test_movie_mut() {
-    let mut lib = Library::create("lib.json");
-    let title = index::Title {
-        title_id: TitleId::new(100),
-        primary_title: String::new(),
-        original_title: None,
-        year: 2010,
-        runtime: 120,
-        vote_count: 5000,
-    };
-    lib.add_movie(&title, RelativePath::new("foo.mkv"), Fingerprint::null(), vec![]);
+#[cfg(test)]
+mod tests {
+    use crate::mero::{tmdb, Fingerprint, Library, MovieIdentity, RelativePath, Title, TitleId};
 
-    for key in lib.movie_access_keys() {
-        lib.movie_mut(key).title_id = TitleId::new(200);
+    fn make_dummy_identity() -> MovieIdentity {
+        MovieIdentity {
+            title: Title {
+                title_id: TitleId::new(100),
+                primary_title: String::new(),
+                original_title: None,
+                year: 2010,
+                runtime: 120,
+                vote_count: 5000,
+            },
+            tmdb_title: tmdb::Title {
+                id: 100,
+                title: String::new(),
+                original_title: String::new(),
+                original_language: String::new(),
+                overview: String::new(),
+                release_date: String::new(),
+                popularity: 1.0,
+                vote_count: 1000,
+                vote_average: 8.0,
+                poster_path: None,
+                backdrop_path: None,
+                adult: false,
+            },
+        }
     }
 
-    assert!(lib.has_title(TitleId::new(200)));
-}
+    #[test]
+    fn test_movie_mut() {
+        let mut lib = Library::create("lib.json");
 
-#[test]
-fn test_movies_mut() {
-    let mut lib = Library::create("lib.json");
-    let title = index::Title {
-        title_id: TitleId::new(100),
-        primary_title: String::new(),
-        original_title: None,
-        year: 2010,
-        runtime: 120,
-        vote_count: 5000,
-    };
-    lib.add_movie(&title, RelativePath::new("foo.mkv"), Fingerprint::null(), vec![]);
+        lib.add_movie(
+            &make_dummy_identity(),
+            RelativePath::new("foo.mkv"),
+            Fingerprint::null(),
+            vec![],
+        );
 
-    for movie in lib.movies_mut().iter_mut() {
-        movie.title_id = TitleId::new(200);
+        for key in lib.movie_access_keys() {
+            lib.movie_mut(key).identity.title.title_id = TitleId::new(200);
+        }
+
+        assert!(lib.has_title(TitleId::new(200)));
     }
 
-    assert!(lib.has_title(TitleId::new(200)));
+    #[test]
+    fn test_movies_mut() {
+        let mut lib = Library::create("lib.json");
+
+        lib.add_movie(
+            &make_dummy_identity(),
+            RelativePath::new("foo.mkv"),
+            Fingerprint::null(),
+            vec![],
+        );
+
+        for movie in lib.movies_mut().iter_mut() {
+            movie.identity.title.title_id = TitleId::new(200);
+        }
+
+        assert!(lib.has_title(TitleId::new(200)));
+    }
+
 }

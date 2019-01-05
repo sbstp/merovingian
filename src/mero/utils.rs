@@ -1,9 +1,16 @@
 use std::cmp;
 use std::fmt;
-use std::io::{self, Read};
+use std::fs::File;
+use std::io::{self, BufReader, BufWriter, Read};
 use std::ops::Deref;
+use std::path::Path;
 
-use serde::{Deserialize, Serialize};
+use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
+use super::Result;
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct NonNan(f64);
@@ -120,6 +127,42 @@ impl SafeBuffer {
 
         Ok(n)
     }
+}
+
+pub fn serialize_bin<T: Serialize>(path: impl AsRef<Path>, obj: &T) -> Result {
+    let writer = BufWriter::new(File::create(path.as_ref())?);
+    bincode::serialize_into(writer, obj)?;
+    Ok(())
+}
+
+pub fn serialize_bin_gz<T: Serialize>(path: impl AsRef<Path>, obj: &T) -> Result {
+    let writer = GzEncoder::new(File::create(path.as_ref())?, Compression::default());
+    bincode::serialize_into(writer, obj)?;
+    Ok(())
+}
+
+pub fn deserialize_bin<T: DeserializeOwned>(path: impl AsRef<Path>) -> Result<T> {
+    let reader = BufReader::new(File::open(path.as_ref())?);
+    let obj = bincode::deserialize_from(reader)?;
+    Ok(obj)
+}
+
+pub fn deserialize_bin_gz<T: DeserializeOwned>(path: impl AsRef<Path>) -> Result<T> {
+    let reader = GzDecoder::new(File::open(path.as_ref())?);
+    let obj = bincode::deserialize_from(reader)?;
+    Ok(obj)
+}
+
+pub fn serialize_json<T: Serialize>(path: impl AsRef<Path>, obj: &T) -> Result {
+    let writer = BufWriter::new(File::create(path.as_ref())?);
+    serde_json::to_writer_pretty(writer, obj)?;
+    Ok(())
+}
+
+pub fn deserialize_json<T: DeserializeOwned>(path: impl AsRef<Path>) -> Result<T> {
+    let reader = BufReader::new(File::open(path.as_ref())?);
+    let obj = serde_json::from_reader(reader)?;
+    Ok(obj)
 }
 
 impl Deref for SafeBuffer {

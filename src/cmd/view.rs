@@ -2,7 +2,7 @@ use std::path::Path;
 
 use hashbrown::HashMap;
 
-use crate::mero::{Index, Library, MovieFile, Result, TitleId};
+use crate::mero::{Library, MovieFile, Result, TitleId};
 use crate::storage::Report;
 
 pub struct Classified {
@@ -21,16 +21,17 @@ impl Classified {
         let mut movies_by_title = HashMap::new();
 
         for movie in movies {
-            if let Some(title_id_scored) = movie.title_id_scored {
+            if let Some(identity) = movie.identity.as_ref() {
                 if library.has_fingerprint(&movie.fingerprint) {
                     ignored.push(movie);
                 } else {
-                    let title_id = title_id_scored.value;
-
-                    if library.has_title(title_id) {
+                    if library.has_title(identity.value.title.title_id) {
                         duplicates.push(movie);
                     } else {
-                        movies_by_title.entry(title_id).or_insert(Vec::new()).push(movie);
+                        movies_by_title
+                            .entry(identity.value.title.title_id)
+                            .or_insert(Vec::new())
+                            .push(movie);
                     }
                 }
             } else {
@@ -59,7 +60,7 @@ impl Classified {
     }
 }
 
-pub fn cmd_view(path: impl AsRef<Path>, index: &Index, library: &Library) -> Result {
+pub fn cmd_view(path: impl AsRef<Path>, library: &Library) -> Result {
     let path = path.as_ref();
 
     let report = Report::load(path)?;
@@ -86,17 +87,19 @@ pub fn cmd_view(path: impl AsRef<Path>, index: &Index, library: &Library) -> Res
     }
     println!();
 
-    classified.matches.sort_by_key(|m| {
-        m.title_id_scored
-            .as_ref()
-            .expect("score should not be None in sort")
-            .score
-    });
+    classified
+        .matches
+        .sort_by_key(|m| m.identity.as_ref().expect("identity should not be None in sort").score);
 
     println!("Conflicts (different copies of the same movie, not yet in the library)");
     println!("=========");
-    for (title_id, movies) in classified.conflicts.iter() {
-        let title = index.get_title(*title_id);
+    for (_, movies) in classified.conflicts.iter() {
+        let title = &movies
+            .first()
+            .and_then(|m| m.identity.as_ref())
+            .expect("identity should not be None in conflicts")
+            .value
+            .title;
         println!("Title: {}", title.primary_title);
         println!("Year: {}", title.year);
         println!("URL: https://imdb.com/title/{}/", title.title_id.full());
@@ -109,15 +112,14 @@ pub fn cmd_view(path: impl AsRef<Path>, index: &Index, library: &Library) -> Res
     println!("Matches (movies to be imported)");
     println!("=======");
     for movie in classified.matches {
-        let title_id_scored = movie.title_id_scored.expect("score should not be None in print");
-        let score = title_id_scored.score;
-        let title = index.get_title(title_id_scored.value);
+        let identity = movie.identity.expect("identity should not be None in print");
+        let title = identity.value.title;
         println!("Path: {}", movie.path.display());
         println!("Name: {}", movie.path.file_name().and_then(|s| s.to_str()).unwrap());
         println!("Title: {}", title.primary_title);
         println!("Year: {}", title.year);
         println!("URL: https://imdb.com/title/{}/", title.title_id.full());
-        println!("Score: {:0.3}", score);
+        println!("Score: {:0.3}", identity.score);
         println!();
     }
 

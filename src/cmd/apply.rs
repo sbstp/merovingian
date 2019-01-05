@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use signal_hook::flag as signal;
 use signal_hook::{SIGINT, SIGTERM};
 
-use crate::mero::{library, utils::clean_path, Index, Library, Manager, RelativePath, Result, SubtitleFile, Transfer};
+use crate::mero::{library, utils::clean_path, Library, Manager, RelativePath, Result, SubtitleFile, Transfer};
 use crate::storage::{Config, Report};
 
 use super::view::Classified;
@@ -39,7 +39,7 @@ lazy_static! {
     static ref QUIT: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 }
 
-pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library: &mut Library) -> Result {
+pub fn cmd_apply(config: Config, path: impl AsRef<Path>, library: &mut Library) -> Result {
     signal::register(SIGINT, QUIT.clone()).expect("unable to setup SIGINT hook");
     signal::register(SIGTERM, QUIT.clone()).expect("unable to setup SIGTERM hook");
 
@@ -56,8 +56,8 @@ pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library:
         println!("Starting copy for {}", movie.path.display());
         println!();
 
-        let title_id_scored = movie.title_id_scored.expect("score should not be None in apply");
-        let title = index.get_title(title_id_scored.value);
+        let identity = &movie.identity.expect("match identity should never be None").value;
+        let title = &identity.title;
 
         let mut manager = Manager::new();
 
@@ -116,7 +116,7 @@ pub fn cmd_apply(config: Config, path: impl AsRef<Path>, index: &Index, library:
         println!("{}/{} files transfered", finished, len);
         println!("");
 
-        library.add_movie(title, movie_path, movie.fingerprint, lib_subtitles);
+        library.add_movie(identity, movie_path, movie.fingerprint, lib_subtitles);
         library.commit()?;
     }
 

@@ -5,12 +5,14 @@ use std::hash::{Hash, Hasher};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::time::SystemTime;
 
 use super::tree::{self, NodeId, Tree};
 
 struct FileNode {
     path: PathBuf,
     metadata: Metadata,
+    mtime: SystemTime,
 }
 
 #[derive(Clone)]
@@ -74,6 +76,10 @@ impl File {
 
     pub fn len(&self) -> u64 {
         self.metadata().len()
+    }
+
+    pub fn mtime(&self) -> SystemTime {
+        self.data().mtime
     }
 
     pub fn parent(&self) -> Option<File> {
@@ -172,7 +178,11 @@ fn walk_rec(tree: &mut Tree<FileNode>, path: PathBuf, parent: Option<NodeId>) ->
         return Ok(None);
     }
 
-    let file_node = FileNode { path: path, metadata };
+    let file_node = FileNode {
+        path: path.canonicalize()?,
+        mtime: metadata.modified()?,
+        metadata,
+    };
 
     let node = match parent {
         Some(parent) => tree.insert_below(parent, file_node),

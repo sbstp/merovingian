@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use subparse::{self, SubtitleFormat};
 use whatlang;
 
-use super::{fingerprint, File, Fingerprint, Index, Result, SafeBuffer, Scored, TitleId};
+use super::tmdb::{self, TMDB};
+use super::{fingerprint, File, Fingerprint, Index, Result, SafeBuffer, Scored, Title};
 
 lazy_static! {
     static ref VIDEO_EXT: Vec<&'static str> =
@@ -18,10 +19,16 @@ lazy_static! {
     static ref SUBTITLE_EXT: Vec<&'static str> = vec!["srt", "sub", "ssa", "ass"];
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct MovieIdentity {
+    pub title: Title,
+    pub tmdb_title: tmdb::Title,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MovieFile {
     pub path: PathBuf,
-    pub title_id_scored: Option<Scored<TitleId>>,
+    pub identity: Option<Scored<MovieIdentity>>,
     pub fingerprint: Fingerprint,
     pub subtitles: Vec<SubtitleFile>,
 }
@@ -78,12 +85,14 @@ fn parse_file_name(stem: &str) -> Option<(String, i32)> {
 
 pub struct Scanner {
     buff: SafeBuffer,
+    tmdb: TMDB,
 }
 
 impl Scanner {
-    pub fn new() -> Scanner {
+    pub fn new(tmdb: TMDB) -> Scanner {
         Scanner {
             buff: SafeBuffer::new(),
+            tmdb: tmdb,
         }
     }
 
@@ -175,13 +184,27 @@ impl Scanner {
                         }
                     }
 
-                    let title = index.find(&title, Some(year));
+                    let mut identity = None;
+
+                    if let Some(scored) = index.find(&title, Some(year)) {
+                        let title = scored.value;
+                        println!("Looking up info on themoviedb.org for {}", child.path().display());
+                        if let Some(tmdb_title) = self.tmdb.find(title.title_id)? {
+                            identity = Some(Scored::new(
+                                scored.score,
+                                MovieIdentity {
+                                    title: title.clone(),
+                                    tmdb_title: tmdb_title,
+                                },
+                            ));
+                        }
+                    }
 
                     results.push((
                         child.clone(),
                         MovieFile {
                             path: child.path().to_owned(),
-                            title_id_scored: title.map(|s| Scored::new(s.score, s.value.title_id)),
+                            identity: identity,
                             // We use a null fingerprint here because we want to avoid fingerprinting
                             // files that will be removed as ignored.
                             fingerprint: Fingerprint::null(),

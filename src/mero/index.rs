@@ -4,13 +4,12 @@ use std::str::FromStr;
 
 use csv;
 use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
 use hashbrown::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 use super::collections::{Counter, FixedString};
 use super::error::Result;
-use super::utils::NonNan;
+use super::utils::{self, NonNan};
 
 const MIN_VOTES: u32 = 25;
 
@@ -27,7 +26,7 @@ impl TitleId {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Title {
     pub title_id: TitleId,
     pub primary_title: String,
@@ -215,9 +214,7 @@ impl Index {
     }
 
     pub fn load_index(path: impl AsRef<Path>) -> Result<Index> {
-        let file = File::open(path)?;
-        let decompressor = GzDecoder::new(file);
-        let mut index: Index = bincode::deserialize_from(decompressor)?;
+        let mut index: Index = utils::deserialize_bin_gz(path)?;
 
         index.titles.shrink_to_fit();
         index.reverse.shrink_to_fit();
@@ -227,10 +224,7 @@ impl Index {
     }
 
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
-        let file = File::create(path)?;
-        let compressor = GzEncoder::new(file, Default::default());
-        bincode::serialize_into(compressor, self)?;
-        Ok(())
+        utils::serialize_bin_gz(path, self)
     }
 
     pub fn get_title(&self, title_id: TitleId) -> &Title {

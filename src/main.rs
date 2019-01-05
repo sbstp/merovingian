@@ -162,7 +162,7 @@ fn main() -> Result<()> {
 
     match args {
         App::Apply { report } => {
-            open_all(|config, index, mut library| cmd_apply(config, report, &index, &mut library))?;
+            open_library(|config, mut library| cmd_apply(config, report, &mut library))?;
         }
         App::Images => {
             open_library(|config, mut library| cmd_images(config, &mut library))?;
@@ -174,13 +174,13 @@ fn main() -> Result<()> {
             open_library(|config, mut library| cmd_rehash(config, &mut library))?;
         }
         App::Scan { directory, out } => {
-            open_all(|_, index, _| cmd_scan(&directory, out, &index))?;
+            open_all(|config, index, _| cmd_scan(&directory, out, config, &index))?;
         }
         App::Sync => {
             open_library(|config, mut library| cmd_sync(config, &mut library))?;
         }
         App::View { report } => {
-            open_all(|_, index, library| cmd_view(&report, &index, &library))?;
+            open_library(|_, library| cmd_view(&report, &library))?;
         }
     }
 
