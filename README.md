@@ -39,7 +39,7 @@ Use the `view` command to view the scan result and matches.
     * **Conflicts** conflicts can be resolved by removing or ignoring all the files causing the conflicts but one.
 
     Make sure to run a new scan after renaming or removing files, and don't forget to run a `sync` command if you delete anything in the library folder.
-4. Once you are satisfied with the status of your files, `apply` the scan to import the files into your library.
+4. Once you are satisfied with the status of your files, `import` the scan to import the files into your library.
 
 
 Example:
@@ -53,7 +53,7 @@ mero scan ~/downloads scan.mero
 mero view scan.mero | less
 
 # if the scan is satisfactory, import
-mero apply scan.mero
+mero import scan.mero
 ```
 
 ## License

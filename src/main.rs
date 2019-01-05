@@ -83,10 +83,10 @@ pub fn load_or_create_index(config: &Config) -> Result<Index> {
 }
 
 #[derive(StructOpt)]
-#[structopt(name = "flicks")]
+#[structopt(name = "mero")]
 enum App {
-    #[structopt(name = "apply", about = "Apply a scan report file")]
-    Apply {
+    #[structopt(name = "import", about = "Import movies matched by the given scan report")]
+    Import {
         #[structopt(parse(from_os_str))]
         report: PathBuf,
     },
@@ -161,8 +161,8 @@ fn main() -> Result<()> {
     use crate::cmd::*;
 
     match args {
-        App::Apply { report } => {
-            open_library(|config, mut library| cmd_apply(config, report, &mut library))?;
+        App::Import { report } => {
+            open_library(|config, mut library| cmd_import(config, report, &mut library))?;
         }
         App::Images => {
             open_library(|config, mut library| cmd_images(config, &mut library))?;

@@ -39,7 +39,7 @@ lazy_static! {
     static ref QUIT: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 }
 
-pub fn cmd_apply(config: Config, path: impl AsRef<Path>, library: &mut Library) -> Result {
+pub fn cmd_import(config: Config, path: impl AsRef<Path>, library: &mut Library) -> Result {
     signal::register(SIGINT, QUIT.clone()).expect("unable to setup SIGINT hook");
     signal::register(SIGTERM, QUIT.clone()).expect("unable to setup SIGTERM hook");
 
