@@ -3,7 +3,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 
 use chardet;
-use encoding;
+use encoding_rs::Encoding;
 use hashbrown::HashSet;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -118,7 +118,8 @@ impl Scanner {
 
         // detect the encoding
         let (charset, _, _) = chardet::detect(&self.buff);
-        let encoding = encoding::label::encoding_from_whatwg_label(chardet::charset2encoding(&charset))?;
+        let label = chardet::charset2encoding(&charset);
+        let encoding = Encoding::for_label(label.as_bytes())?;
 
         // parse the subtitle file
         let sub = subparse::parse_bytes(format, &self.buff, encoding, 30.0).ok()?;
@@ -149,13 +150,29 @@ impl Scanner {
     }
 
     /// Scan for subtitles around a movie file.
-    fn scan_subtitles(&mut self, movie: &File) -> Vec<SubtitleFile> {
+    fn scan_subtitles(&mut self, movie: &File, ignored: &HashSet<File>) -> Vec<SubtitleFile> {
         let mut subs = vec![];
+
+        // if there's only a single movie file in the folder, scan in subfolders
+        let alone = movie.siblings().filter(|s| !ignored.contains(s)).count() == 0;
+
         for file in movie.siblings() {
+            // subtitle files with the same stem
             if is_subtitle(&file) && file.name().starts_with(movie.stem()) {
                 println!("Analyzing subtitle {}", file.path().display());
                 if let Some(sub) = self.analyze_subtitle(&file) {
                     subs.push(sub);
+                }
+            }
+
+            if alone {
+                for desc in file.descendants() {
+                    if is_subtitle(&desc) {
+                        println!("Analyzing subtitle {}", desc.path().display());
+                        if let Some(sub) = self.analyze_subtitle(&desc) {
+                            subs.push(sub);
+                        }
+                    }
                 }
             }
         }
@@ -222,7 +239,7 @@ impl Scanner {
         for (file, movie) in results.iter_mut() {
             println!("Scanning subtitles for {}", movie.path.display());
             movie.fingerprint = fingerprint::file(&movie.path)?;
-            movie.subtitles = self.scan_subtitles(&file);
+            movie.subtitles = self.scan_subtitles(&file, &ignored);
         }
 
         Ok(results.into_iter().map(|(_, movie)| movie).collect())
