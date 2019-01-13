@@ -14,7 +14,7 @@ pub enum Error {
     Io(io::Error),
     Json(serde_json::Error),
     ParseIntError(ParseIntError),
-    Reqwest(reqwest::Error),
+    Http(lynx::HttpError),
     SpawnError(String),
     Transfer {
         src: Option<io::Error>,
@@ -34,7 +34,7 @@ impl fmt::Display for Error {
             Io(e) => write!(w, "Error({})", e),
             Json(e) => write!(w, "Error({})", e),
             ParseIntError(e) => write!(w, "Error({})", e),
-            Reqwest(e) => write!(w, "Error({})", e),
+            Http(e) => write!(w, "Error({})", e),
             SpawnError(e) => write!(w, "Error(SpawnError({}))", e),
             Transfer { src, dst } => match (src, dst) {
                 (Some(e1), Some(e2)) => write!(w, "Error(Transfer(Both({}, {})))", e1, e2),
@@ -56,7 +56,7 @@ impl error::Error for Error {
             Io(e) => e.description(),
             Json(e) => e.description(),
             ParseIntError(e) => e.description(),
-            Reqwest(e) => e.description(),
+            Http(e) => e.description(),
             SpawnError(_) => "error spawning process",
             Transfer { src, dst } => match (src, dst) {
                 (Some(_), Some(_)) => "transfer error both source and destination",
@@ -76,7 +76,7 @@ impl error::Error for Error {
             Io(e) => e.source(),
             Json(e) => e.source(),
             ParseIntError(e) => e.source(),
-            Reqwest(e) => e.source(),
+            Http(e) => e.source(),
             SpawnError(_) => None,
             Transfer { src, dst } => match (src, dst) {
                 (Some(_), Some(_)) => None,
@@ -127,8 +127,8 @@ impl From<ParseIntError> for Error {
     }
 }
 
-impl From<reqwest::Error> for Error {
-    fn from(err: reqwest::Error) -> Error {
-        Error::Reqwest(err)
+impl From<lynx::HttpError> for Error {
+    fn from(err: lynx::HttpError) -> Error {
+        Error::Http(err)
     }
 }

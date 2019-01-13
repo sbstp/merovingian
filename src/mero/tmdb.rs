@@ -5,7 +5,7 @@ use std::thread;
 use std::time::Duration;
 
 use hashbrown::HashMap;
-use reqwest::Client;
+use lynx::Request;
 use serde::{Deserialize, Serialize};
 
 use crate::mero::{utils, Result, TitleId};
@@ -34,7 +34,6 @@ struct FindResult {
 }
 
 pub struct TMDB {
-    client: Client,
     cache: HashMap<TitleId, Title>,
     cache_path: PathBuf,
 }
@@ -43,7 +42,6 @@ impl TMDB {
     pub fn new(cache_path: impl Into<PathBuf>) -> TMDB {
         let cache_path = cache_path.into();
         TMDB {
-            client: Client::new(),
             cache: TMDB::open_cache(&cache_path).unwrap_or_else(|| HashMap::new()),
             cache_path: cache_path,
         }
@@ -68,11 +66,11 @@ impl TMDB {
             API_KEY
         );
 
-        let mut resp = self.client.get(&url).send()?;
+        let (status, _, resp) = Request::get(&url).send()?;
         thread::sleep(Duration::from_millis(250));
 
-        if resp.status().is_success() {
-            let result: FindResult = resp.json()?;
+        if status.is_success() {
+            let result: FindResult = serde_json::from_str(&resp.string()?)?;
             let info = result.movie_results.into_iter().next();
             if let Some(info) = &info {
                 self.cache.insert(title_id, info.clone());
@@ -87,9 +85,9 @@ impl TMDB {
     pub fn get_save_image(&self, path: &str, outpath: impl AsRef<Path>) -> Result<()> {
         let mut writer = BufWriter::new(File::create(outpath.as_ref())?);
         let url = format!("https://image.tmdb.org/t/p/original/{}", path);
-        let mut resp = self.client.get(&url).send()?;
-        if resp.status().is_success() {
-            resp.copy_to(&mut writer)?;
+        let (status, _, resp) = Request::get(&url).send()?;
+        if status.is_success() {
+            resp.write_to(&mut writer)?;
         }
         Ok(())
     }

@@ -8,6 +8,7 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
+use lynx::Request;
 use structopt::StructOpt;
 
 use crate::mero::{error::Result, index::Index, library::Library};
@@ -34,31 +35,32 @@ where
     result
 }
 
-fn download_file(client: &reqwest::Client, url: &str, dest: impl AsRef<Path>) -> Result<()> {
-    let mut file = BufWriter::new(File::create(dest)?);
-    let mut resp = client.get(url).send()?;
-    resp.copy_to(&mut file)?;
-    Ok(())
+fn download_file(url: &str, dest: impl AsRef<Path>) -> Result<()> {
+    let (status, _, resp) = Request::get(url).send()?;
+    if status.is_success() {
+        let file = BufWriter::new(File::create(dest)?);
+        resp.write_to(file)?;
+        Ok(())
+    } else {
+        eprintln!("Error fetching '{}' : code {}", url, status.as_u16());
+        panic!();
+    }
 }
 
-fn download_file_if_missing(client: &reqwest::Client, url: &str, dest: impl AsRef<Path>) -> Result<()> {
+fn download_file_if_missing(url: &str, dest: impl AsRef<Path>) -> Result<()> {
     if !dest.as_ref().exists() {
-        task(format!("Downloading {}", url), || download_file(client, url, dest))?;
+        task(format!("Downloading {}", url), || download_file(url, dest))?;
     }
     Ok(())
 }
 
 fn check_source_files(data_dir: &Path) -> Result<()> {
-    let client = reqwest::Client::new();
-
     download_file_if_missing(
-        &client,
         "https://datasets.imdbws.com/title.basics.tsv.gz",
         data_dir.join(SRC_FILE_BASICS),
     )?;
 
     download_file_if_missing(
-        &client,
         "https://datasets.imdbws.com/title.ratings.tsv.gz",
         data_dir.join(SRC_FILE_RATINGS),
     )?;
