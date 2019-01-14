@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Merovingian Scan Report</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.2.1/css/bootstrap.min.css">
+    <style type="text/css">
+        body {
+            font-size: 11pt;
+        }
+
+        ul li {
+            margin-top: 10px;
+        }
+        table tr td:first-child {
+            text-align: right;
+            padding-right: 10px;
+        }
+        .path {
+            font-family: monospace;
+            font-size: 9pt;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-sm-12">
+                <ul class="nav nav-tabs" id="tabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-toggle="tab" href="#tab-matches">Matches ({{ matches|length }})</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#tab-conflicts">Conflicts ({{ conflicts|length }})</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#tab-duplicates">Duplicates ({{ duplicates|length }})</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#tab-unmatched">Unmatched ({{ unmatched|length }})</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#tab-ignored">Ignored ({{ ignored|length }})</a>
+                    </li>
+                </ul>
+                <div class="tab-content" id="tabs-content">
+                    <div class="tab-pane active" id="tab-matches">
+                        <ul>
+                        {% for match in matches %}
+                            <li>
+                                <table border="0" cellpadding="1">
+                                    <tr>
+                                        <td>Name</td>
+                                        <td><span class="path" title="{{ match.info.path.path }}">{{ match.info.path.filename }}</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Title</td>
+                                        <td><a href=""><a href="{{ match.title.url }}" target="_blank">{{ match.title.primary_title }} ({{ match.title.year }})</a></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Score</td>
+                                        <td>{{ match.info.score }}</td>
+                                    </tr>
+                                </table>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="tab-pane" id="tab-conflicts">
+                        <ul>
+                        {% for conflict in conflicts %}
+                            <li>
+                                <table border="0" cellpadding="1">
+                                    <tr>
+                                        <td>Title</td>
+                                        <td><a href=""><a href="{{ conflict.title.url }}" target="_blank">{{ conflict.title.primary_title }} ({{ conflict.title.year }})</a></td>
+                                    </tr>
+                                    {% for info in conflict.paths %}
+                                        <tr>
+                                            {% if loop.first %}
+                                                <td>Paths</td>
+                                            {% else %}
+                                                <td></td>
+                                            {% endif %}
+                                            <td>
+                                                [{{ info.score }}]<span class="path" title="{{ info.path.path }}">{{ info.path.filename }}</span>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </table>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="tab-pane" id="tab-duplicates">
+                        <ul>
+                        {% for match in duplicates %}
+                            <li>
+                                <table border="0" cellpadding="1">
+                                    <tr>
+                                        <td>Name</td>
+                                        <td><span class="path" title="{{ match.info.path.path }}">{{ match.info.path.filename }}</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Title</td>
+                                        <td><a href=""><a href="{{ match.title.url }}" target="_blank">{{ match.title.primary_title }} ({{ match.title.year }})</a></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Score</td>
+                                        <td>{{ match.info.score }}</td>
+                                    </tr>
+                                </table>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="tab-pane" id="tab-unmatched">
+                        <ul>
+                        {% for path in unmatched %}
+                            <li><span class="path" title="{{ path.path }}">{{ path.filename }}</span></li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="tab-pane" id="tab-ignored">
+                        <ul>
+                        {% for path in ignored %}
+                            <li><span class="path" title="{{ path.path }}">{{ path.filename }}</span></li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.2.1/js/bootstrap.min.js"></script>
+</body>
+
+</html>

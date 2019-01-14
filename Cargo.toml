@@ -20,6 +20,7 @@ signal-hook = "0.1"
 strsim = "0.8"
 structopt = "0.2"
 subparse = { git = "https://github.com/sbstp/subparse.git" }
+tera = "0.11"
 whatlang = "0.6"
 
 [profile.dev]

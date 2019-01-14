@@ -1,3 +1,4 @@
+#![feature(proc_macro_hygiene)]
 #![allow(dead_code)]
 
 mod cmd;

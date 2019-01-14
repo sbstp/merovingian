@@ -1,10 +1,14 @@
 use std::path::Path;
 
 use hashbrown::HashMap;
+use tera::Tera;
 
-use crate::mero::{Library, MovieFile, Result, TitleId};
+use serde::Serialize;
+
+use crate::mero::{Library, MovieFile, NonNan, Result, Title, TitleId};
 use crate::storage::Report;
 
+#[derive(Serialize)]
 pub struct Classified {
     pub ignored: Vec<MovieFile>,
     pub unmatched: Vec<MovieFile>,
@@ -50,6 +54,9 @@ impl Classified {
             }
         }
 
+        matches.sort_by_key(|m| m.identity.as_ref().expect("identity should not be None in sort").score);
+        duplicates.sort_by_key(|m| m.identity.as_ref().expect("identity should not be None in sort").score);
+
         Classified {
             ignored,
             unmatched,
@@ -60,68 +67,197 @@ impl Classified {
     }
 }
 
+fn fmt_filename(path: impl AsRef<Path>) -> String {
+    Path::new(path.as_ref().file_name().expect("empty filename"))
+        .display()
+        .to_string()
+}
+
+fn fmt_score(score: NonNan) -> String {
+    format!("{:0.3}", score)
+}
+
+#[derive(Serialize)]
+struct TitleDto {
+    primary_title: String,
+    original_title: Option<String>,
+    year: u16,
+    url: String,
+}
+
+impl From<&Title> for TitleDto {
+    fn from(title: &Title) -> TitleDto {
+        TitleDto {
+            primary_title: title.primary_title.clone(),
+            original_title: title.original_title.clone(),
+            year: title.year,
+            url: format!("https://imdb.com/title/{}/", title.title_id.full()),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct PathDto {
+    filename: String,
+    path: String,
+}
+
+impl From<&Path> for PathDto {
+    fn from(path: &Path) -> PathDto {
+        PathDto {
+            filename: fmt_filename(&path),
+            path: path.display().to_string(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct MatchInfoDto {
+    path: PathDto,
+    score: String,
+}
+
+impl From<&MovieFile> for MatchInfoDto {
+    fn from(file: &MovieFile) -> MatchInfoDto {
+        let scored = file.identity.as_ref().expect("identity is none");
+
+        MatchInfoDto {
+            path: From::from(file.path.as_path()),
+            score: fmt_score(scored.score),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct MatchDto {
+    title: TitleDto,
+    info: MatchInfoDto,
+}
+
+impl From<&MovieFile> for MatchDto {
+    fn from(file: &MovieFile) -> MatchDto {
+        let scored = file.identity.as_ref().expect("identity is none");
+
+        MatchDto {
+            title: From::from(&scored.value.title),
+            info: file.into(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct ConflictDto {
+    title: TitleDto,
+    paths: Vec<MatchInfoDto>,
+}
+
+impl From<&[MovieFile]> for ConflictDto {
+    fn from(conflicts: &[MovieFile]) -> ConflictDto {
+        let identity = conflicts[0].identity.as_ref().expect("identity is none");
+        ConflictDto {
+            title: From::from(&identity.value.title),
+            paths: conflicts.iter().map(From::from).collect(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct DisplayDto {
+    matches: Vec<MatchDto>,
+    conflicts: Vec<ConflictDto>,
+    duplicates: Vec<MatchDto>,
+    unmatched: Vec<PathDto>,
+    ignored: Vec<PathDto>,
+}
+
+impl From<&Classified> for DisplayDto {
+    fn from(classified: &Classified) -> DisplayDto {
+        DisplayDto {
+            matches: classified.matches.iter().map(From::from).collect(),
+            conflicts: classified.conflicts.values().map(|cs| From::from(&cs[..])).collect(),
+            duplicates: classified.duplicates.iter().map(From::from).collect(),
+            unmatched: classified
+                .unmatched
+                .iter()
+                .map(|file| file.path.as_path().into())
+                .collect(),
+            ignored: classified
+                .ignored
+                .iter()
+                .map(|file| file.path.as_path().into())
+                .collect(),
+        }
+    }
+}
+
 pub fn cmd_view(path: impl AsRef<Path>, library: &Library) -> Result {
     let path = path.as_ref();
 
     let report = Report::load(path)?;
-    let mut classified = Classified::classify(library, report.movies);
+    let classified = Classified::classify(library, report.movies);
+    let display = DisplayDto::from(&classified);
 
-    println!("Ignored (files that were already imported)");
-    println!("=======");
-    for movie in classified.ignored {
-        println!("{}", movie.path.display());
-    }
-    println!();
+    let mut tera = Tera::default();
+    tera.add_raw_template("view.html", include_str!("view.html"))
+        .expect("unable to compile template");
 
-    println!("Unmatched (files that could not be matched with a movie)");
-    println!("=========");
-    for movie in classified.unmatched {
-        println!("{}", movie.path.display());
-    }
-    println!();
+    println!(
+        "{}",
+        tera.render("view.html", &display).expect("unable to render template")
+    );
 
-    println!("Duplicates (different copy of a movie already in the library)");
-    println!("==========");
-    for movie in classified.duplicates {
-        println!("{}", movie.path.display());
-    }
-    println!();
+    // println!("Ignored (files that were already imported)");
+    // println!("=======");
+    // for movie in classified.ignored {
+    //     println!("{}", movie.path.display());
+    // }
+    // println!();
 
-    classified
-        .matches
-        .sort_by_key(|m| m.identity.as_ref().expect("identity should not be None in sort").score);
+    // println!("Unmatched (files that could not be matched with a movie)");
+    // println!("=========");
+    // for movie in classified.unmatched {
+    //     println!("{}", movie.path.display());
+    // }
+    // println!();
 
-    println!("Conflicts (different copies of the same movie, not yet in the library)");
-    println!("=========");
-    for (_, movies) in classified.conflicts.iter() {
-        let title = &movies
-            .first()
-            .and_then(|m| m.identity.as_ref())
-            .expect("identity should not be None in conflicts")
-            .value
-            .title;
-        println!("Title: {}", title.primary_title);
-        println!("Year: {}", title.year);
-        println!("URL: https://imdb.com/title/{}/", title.title_id.full());
-        for movie in movies {
-            println!("Path: {}", movie.path.display());
-        }
-        println!();
-    }
+    // println!("Duplicates (different copy of a movie already in the library)");
+    // println!("==========");
+    // for movie in classified.duplicates {
+    //     println!("{}", movie.path.display());
+    // }
+    // println!();
 
-    println!("Matches (movies to be imported)");
-    println!("=======");
-    for movie in classified.matches {
-        let identity = movie.identity.expect("identity should not be None in print");
-        let title = identity.value.title;
-        println!("Path: {}", movie.path.display());
-        println!("Name: {}", movie.path.file_name().and_then(|s| s.to_str()).unwrap());
-        println!("Title: {}", title.primary_title);
-        println!("Year: {}", title.year);
-        println!("URL: https://imdb.com/title/{}/", title.title_id.full());
-        println!("Score: {:0.3}", identity.score);
-        println!();
-    }
+    // println!("Conflicts (different copies of the same movie, not yet in the library)");
+    // println!("=========");
+    // for (_, movies) in classified.conflicts.iter() {
+    //     let title = &movies
+    //         .first()
+    //         .and_then(|m| m.identity.as_ref())
+    //         .expect("identity should not be None in conflicts")
+    //         .value
+    //         .title;
+    //     println!("Title: {}", title.primary_title);
+    //     println!("Year: {}", title.year);
+    //     println!("URL: https://imdb.com/title/{}/", title.title_id.full());
+    //     for movie in movies {
+    //         println!("Path: {}", movie.path.display());
+    //     }
+    //     println!();
+    // }
+
+    // println!("Matches (movies to be imported)");
+    // println!("=======");
+    // for movie in classified.matches {
+    //     let identity = movie.identity.expect("identity should not be None in print");
+    //     let title = identity.value.title;
+    //     println!("Path: {}", movie.path.display());
+    //     println!("Name: {}", movie.path.file_name().and_then(|s| s.to_str()).unwrap());
+    //     println!("Title: {}", title.primary_title);
+    //     println!("Year: {}", title.year);
+    //     println!("URL: https://imdb.com/title/{}/", );
+    //     println!("Score: {:0.3}", identity.score);
+    //     println!();
+    // }
 
     Ok(())
 }
