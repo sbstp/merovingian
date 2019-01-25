@@ -5,8 +5,9 @@ use tera::Tera;
 
 use serde::Serialize;
 
+use crate::cmd::scan::Report;
+use crate::mero::scan::PathSize;
 use crate::mero::{Library, MovieFile, NonNan, Result, Title, TitleId};
-use crate::storage::Report;
 
 #[derive(Serialize)]
 pub struct Classified {
@@ -77,6 +78,23 @@ fn fmt_score(score: NonNan) -> String {
     format!("{:0.3}", score)
 }
 
+fn fmt_size(size: u64) -> String {
+    const KIB: u64 = 1024;
+    const MIB: u64 = KIB * 1024;
+    const GIB: u64 = MIB * 1024;
+    const TIB: u64 = GIB * 1024;
+    const STEPS: [u64; 4] = [TIB, GIB, MIB, KIB];
+    const LABELS: [&str; 4] = ["TiB", "GiB", "MiB", "KiB"];
+
+    for (&step, label) in STEPS.iter().zip(LABELS.iter()) {
+        if size >= step {
+            return format!("{:0.2} {}", size as f64 / step as f64, label);
+        }
+    }
+
+    format!("{} bytes", size)
+}
+
 #[derive(Serialize)]
 struct TitleDto {
     primary_title: String,
@@ -100,13 +118,15 @@ impl From<&Title> for TitleDto {
 struct PathDto {
     filename: String,
     path: String,
+    size: String,
 }
 
-impl From<&Path> for PathDto {
-    fn from(path: &Path) -> PathDto {
+impl From<&PathSize> for PathDto {
+    fn from(pathsize: &PathSize) -> PathDto {
         PathDto {
-            filename: fmt_filename(&path),
-            path: path.display().to_string(),
+            filename: fmt_filename(&pathsize.path),
+            path: pathsize.path.display().to_string(),
+            size: fmt_size(pathsize.size),
         }
     }
 }
@@ -122,7 +142,7 @@ impl From<&MovieFile> for MatchInfoDto {
         let scored = file.identity.as_ref().expect("identity is none");
 
         MatchInfoDto {
-            path: From::from(file.path.as_path()),
+            path: From::from(file.pathsize()),
             score: fmt_score(scored.score),
         }
     }
@@ -176,16 +196,8 @@ impl From<&Classified> for DisplayDto {
             matches: classified.matches.iter().map(From::from).collect(),
             conflicts: classified.conflicts.values().map(|cs| From::from(&cs[..])).collect(),
             duplicates: classified.duplicates.iter().map(From::from).collect(),
-            unmatched: classified
-                .unmatched
-                .iter()
-                .map(|file| file.path.as_path().into())
-                .collect(),
-            ignored: classified
-                .ignored
-                .iter()
-                .map(|file| file.path.as_path().into())
-                .collect(),
+            unmatched: classified.unmatched.iter().map(|file| file.pathsize().into()).collect(),
+            ignored: classified.ignored.iter().map(|file| file.pathsize().into()).collect(),
         }
     }
 }
@@ -198,8 +210,10 @@ pub fn cmd_view(path: impl AsRef<Path>, library: &Library) -> Result {
     let display = DisplayDto::from(&classified);
 
     let mut tera = Tera::default();
+    tera.add_raw_template("view_macros.html", include_str!("view_macros.html"))
+        .expect("unable to compile view_macros.html");
     tera.add_raw_template("view.html", include_str!("view.html"))
-        .expect("unable to compile template");
+        .expect("unable to compile view.html");
 
     println!(
         "{}",

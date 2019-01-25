@@ -9,8 +9,9 @@ use lazy_static::lazy_static;
 use signal_hook::flag as signal;
 use signal_hook::{SIGINT, SIGTERM};
 
+use crate::cmd::scan::Report;
+use crate::config::Config;
 use crate::mero::{library, utils::clean_path, Library, Manager, RelativePath, Result, SubtitleFile, Transfer};
-use crate::storage::{Config, Report};
 
 use super::view::Classified;
 
@@ -53,29 +54,29 @@ pub fn cmd_import(config: Config, path: impl AsRef<Path>, library: &mut Library)
     let root_path = config.root_path();
 
     for movie in classified.matches {
-        println!("Starting copy for {}", movie.path.display());
+        println!("Starting copy for {}", movie.path().display());
         println!();
 
-        let identity = &movie.identity.expect("match identity should never be None").value;
+        let identity = movie.identity().expect("match identity should never be None");
         let title = &identity.title;
 
         let mut manager = Manager::new();
 
-        let ext = movie.path.extension().and_then(|s| s.to_str()).unwrap_or("");
+        let ext = movie.path().extension().and_then(|s| s.to_str()).unwrap_or("");
         let movie_path = make_movie_path(&title.primary_title, title.year, ext);
 
-        manager.add_transfer(&movie.path, root_path.join(&movie_path));
+        manager.add_transfer(&movie.path(), root_path.join(&movie_path));
 
         let mut lib_subtitles = vec![];
 
-        for sub in movie.subtitles {
+        for sub in movie.subtitles.iter() {
             let subtitle_path = make_subtitle_path(&movie_path, &sub);
 
-            manager.add_transfer(&sub.path, root_path.join(&subtitle_path));
+            manager.add_transfer(&sub.path(), root_path.join(&subtitle_path));
 
             lib_subtitles.push(library::Subtitle {
                 path: subtitle_path,
-                fingerprint: sub.fingerprint,
+                fingerprint: sub.fingerprint.clone(),
             });
         }
 
@@ -116,7 +117,7 @@ pub fn cmd_import(config: Config, path: impl AsRef<Path>, library: &mut Library)
         println!("{}/{} files transfered", finished, len);
         println!("");
 
-        library.add_movie(identity, movie_path, movie.fingerprint, lib_subtitles);
+        library.add_movie(identity, movie_path, movie.fingerprint.clone(), lib_subtitles);
         library.commit()?;
     }
 

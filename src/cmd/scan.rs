@@ -1,7 +1,32 @@
 use std::path::{Path, PathBuf};
 
-use crate::mero::{walk, Index, Result, Scanner, TMDB};
-use crate::storage::{Config, Report};
+use serde::{Serialize, Deserialize};
+
+use crate::mero::{walk, Index, Result, Scanner, TMDB, utils, MovieFile};
+use crate::config::{Config};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Report {
+    pub path: PathBuf,
+    pub movies: Vec<MovieFile>,
+}
+
+impl Report {
+    pub fn new(path: impl Into<PathBuf>) -> Report {
+        Report {
+            movies: vec![],
+            path: path.into(),
+        }
+    }
+
+    pub fn load(path: impl AsRef<Path>) -> Result<Report> {
+        utils::deserialize_bin_gz(path)
+    }
+
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        utils::serialize_bin_gz(path, self)
+    }
+}
 
 pub fn cmd_scan(
     import_path: impl AsRef<Path>,

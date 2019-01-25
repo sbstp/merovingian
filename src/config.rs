@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
-use crate::mero::{utils, MovieFile, Result};
+use crate::mero::{utils, Result};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -59,28 +59,5 @@ impl Config {
 
     pub fn tmdb_cache_path(&self) -> PathBuf {
         self.root_path.join(".mero/tmdb-cache.bin.gz")
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Report {
-    pub path: PathBuf,
-    pub movies: Vec<MovieFile>,
-}
-
-impl Report {
-    pub fn new(path: impl Into<PathBuf>) -> Report {
-        Report {
-            movies: vec![],
-            path: path.into(),
-        }
-    }
-
-    pub fn load(path: impl AsRef<Path>) -> Result<Report> {
-        utils::deserialize_bin_gz(path)
-    }
-
-    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
-        utils::serialize_bin_gz(path, self)
     }
 }

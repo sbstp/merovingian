@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::BufReader;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chardet;
 use encoding_rs::Encoding;
@@ -20,6 +20,21 @@ lazy_static! {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PathSize {
+    pub path: PathBuf,
+    pub size: u64,
+}
+
+impl From<&File> for PathSize {
+    fn from(file: &File) -> PathSize {
+        PathSize {
+            path: file.path().to_owned(),
+            size: file.len(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MovieIdentity {
     pub title: Title,
     pub tmdb_title: tmdb::Title,
@@ -27,18 +42,53 @@ pub struct MovieIdentity {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MovieFile {
-    pub path: PathBuf,
+    path: PathSize,
     pub identity: Option<Scored<MovieIdentity>>,
     pub fingerprint: Fingerprint,
     pub subtitles: Vec<SubtitleFile>,
 }
 
+impl MovieFile {
+    pub fn path(&self) -> &Path {
+        &self.path.path
+    }
+
+    pub fn size(&self) -> u64 {
+        self.path.size
+    }
+
+    pub fn pathsize(&self) -> &PathSize {
+        &self.path
+    }
+
+    pub fn identity(&self) -> Option<&MovieIdentity> {
+        match &self.identity {
+            None => None,
+            Some(scored) => Some(&scored.value),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SubtitleFile {
-    pub path: PathBuf,
+    pub path: PathSize,
     pub lang: String,
     pub ext: String,
     pub fingerprint: Fingerprint,
+}
+
+impl SubtitleFile {
+    pub fn path(&self) -> &Path {
+        &self.path.path
+    }
+
+    pub fn size(&self) -> u64 {
+        self.path.size
+    }
+
+    pub fn pathsize(&self) -> &PathSize {
+        &self.path
+    }
 }
 
 fn is_video(file: &File) -> bool {
@@ -142,7 +192,7 @@ impl Scanner {
         let fp = fingerprint::bytes(&self.buff);
 
         Some(SubtitleFile {
-            path: file.path().to_owned(),
+            path: file.into(),
             ext: format.get_name()[1..4].to_owned(),
             lang: lang.code().to_owned(),
             fingerprint: fp,
@@ -220,7 +270,7 @@ impl Scanner {
                     results.push((
                         child.clone(),
                         MovieFile {
-                            path: child.path().to_owned(),
+                            path: From::from(&child),
                             identity: identity,
                             // We use a null fingerprint here because we want to avoid fingerprinting
                             // files that will be removed as ignored.
@@ -237,8 +287,8 @@ impl Scanner {
 
         // Fingerprint and scan for subtitles for each remaining movie file.
         for (file, movie) in results.iter_mut() {
-            println!("Scanning subtitles for {}", movie.path.display());
-            movie.fingerprint = fingerprint::file(&movie.path)?;
+            println!("Scanning subtitles for {}", movie.path().display());
+            movie.fingerprint = fingerprint::file(&movie.path())?;
             movie.subtitles = self.scan_subtitles(&file, &ignored);
         }
 

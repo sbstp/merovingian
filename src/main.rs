@@ -3,9 +3,8 @@
 
 mod cmd;
 mod mero;
-mod storage;
+mod config;
 
-use std::alloc::System;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
@@ -14,10 +13,7 @@ use lynx::Request;
 use structopt::StructOpt;
 
 use crate::mero::{error::Result, index::Index, library::Library};
-use crate::storage::Config;
-
-#[global_allocator]
-static ALLOCATOR: System = System;
+use crate::config::Config;
 
 const SRC_FILE_BASICS: &str = "title.basics.tsv.gz";
 const SRC_FILE_RATINGS: &str = "title.ratings.tsv.gz";

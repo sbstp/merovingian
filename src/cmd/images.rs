@@ -1,5 +1,5 @@
 use crate::mero::{Library, RelativePath, Result, TMDB};
-use crate::storage::Config;
+use crate::Config;
 
 pub fn cmd_images(config: Config, library: &mut Library) -> Result {
     let root_path = config.root_path();

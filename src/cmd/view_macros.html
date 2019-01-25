@@ -1,0 +1,15 @@
+{% macro path(path) %}
+<span class="path">
+    <span class="size">[{{ path.size }}]</span>
+    <span class="filename" title="{{ path.path }}">{{ path.filename }}</span>
+</span>
+{% endmacro path %}
+
+{% macro title(title) %}
+<a href="{{ title.url }}" target="_blank">
+    <span class="title">
+        <span class="primary_title">{{ title.primary_title }}</span>
+        <span class="year">({{ title.year }})</span>
+    </span>
+</a>
+{% endmacro title %}
