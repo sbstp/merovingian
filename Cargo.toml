@@ -8,6 +8,7 @@ edition = "2018"
 bincode = "1"
 chardet = "0.2"
 csv = "1"
+dirs = "1"
 encoding_rs = "0.8"
 flate2 = "1"
 hashbrown = { version = "0.1", features = ["serde"] }
@@ -27,6 +28,3 @@ whatlang = "0.6"
 [profile.dev]
 opt-level = 1
 debug = 1
-
-[profile.release]
-panic = "abort"

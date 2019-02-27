@@ -1,4 +1,3 @@
-use std::env;
 use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 
@@ -14,8 +13,7 @@ pub struct Config {
 
 lazy_static! {
     static ref CONFIG_DIR: PathBuf = {
-        let home = env::var("HOME").expect("HOME variable unset");
-        let home_dir = Path::new(&home);
+        let home_dir = dirs::home_dir().expect("unable to get home directory");
         home_dir.join(".config/mero")
     };
     static ref CONFIG_PATH: PathBuf = CONFIG_DIR.join("config.json");
