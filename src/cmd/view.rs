@@ -1,3 +1,6 @@
+use std::env;
+use std::fs::File;
+use std::io::Write;
 use std::path::Path;
 
 use hashbrown::HashMap;
@@ -202,76 +205,89 @@ impl From<&Classified> for DisplayDto {
     }
 }
 
-pub fn cmd_view(path: impl AsRef<Path>, library: &Library) -> Result {
+fn print_text_report(classified: &Classified) {
+    println!("Ignored (files that were already imported)");
+    println!("=======");
+    for movie in &classified.ignored {
+        println!("{}", movie.path().display());
+    }
+    println!();
+
+    println!("Unmatched (files that could not be matched with a movie)");
+    println!("=========");
+    for movie in &classified.unmatched {
+        println!("{}", movie.path().display());
+    }
+    println!();
+
+    println!("Duplicates (different copy of a movie already in the library)");
+    println!("==========");
+    for movie in &classified.duplicates {
+        println!("{}", movie.path().display());
+    }
+    println!();
+
+    println!("Conflicts (different copies of the same movie, not yet in the library)");
+    println!("=========");
+    for (_, movies) in classified.conflicts.iter() {
+        let title = &movies
+            .first()
+            .and_then(|m| m.identity.as_ref())
+            .expect("identity should not be None in conflicts")
+            .value
+            .title;
+        println!("Title: {}", title.primary_title);
+        println!("Year: {}", title.year);
+        println!("URL: https://imdb.com/title/{}/", title.title_id.full());
+        for movie in movies {
+            println!("Path: {}", movie.path().display());
+        }
+        println!();
+    }
+
+    println!("Matches (movies to be imported)");
+    println!("=======");
+    for movie in &classified.matches {
+        let identity = movie.identity.as_ref().expect("identity should not be None in print");
+        let title = &identity.value.title;
+        println!("Path: {}", movie.path().display());
+        println!("Name: {}", movie.path().file_name().and_then(|s| s.to_str()).unwrap());
+        println!("Title: {}", title.primary_title);
+        println!("Year: {}", title.year);
+        println!("URL: https://imdb.com/title/{}/", title.title_id.full());
+        println!("Score: {:0.3}", identity.score);
+        println!();
+    }
+}
+
+pub fn cmd_view(path: impl AsRef<Path>, library: &Library, no_html: bool) -> Result {
     let path = path.as_ref();
 
     let report = Report::load(path)?;
     let classified = Classified::classify(library, report.movies);
     let display = DisplayDto::from(&classified);
 
-    let mut tera = Tera::default();
-    tera.add_raw_template("view_macros.html", include_str!("view_macros.html"))
-        .expect("unable to compile view_macros.html");
-    tera.add_raw_template("view.html", include_str!("view.html"))
-        .expect("unable to compile view.html");
+    if !no_html {
+        let mut tera = Tera::default();
+        tera.add_raw_template("view_macros.html", include_str!("html/view_macros.html"))
+            .expect("unable to compile view_macros.html");
+        tera.add_raw_template("view.html", include_str!("html/view.html"))
+            .expect("unable to compile view.html");
 
-    println!(
-        "{}",
-        tera.render("view.html", &display).expect("unable to render template")
-    );
-
-    // println!("Ignored (files that were already imported)");
-    // println!("=======");
-    // for movie in classified.ignored {
-    //     println!("{}", movie.path.display());
-    // }
-    // println!();
-
-    // println!("Unmatched (files that could not be matched with a movie)");
-    // println!("=========");
-    // for movie in classified.unmatched {
-    //     println!("{}", movie.path.display());
-    // }
-    // println!();
-
-    // println!("Duplicates (different copy of a movie already in the library)");
-    // println!("==========");
-    // for movie in classified.duplicates {
-    //     println!("{}", movie.path.display());
-    // }
-    // println!();
-
-    // println!("Conflicts (different copies of the same movie, not yet in the library)");
-    // println!("=========");
-    // for (_, movies) in classified.conflicts.iter() {
-    //     let title = &movies
-    //         .first()
-    //         .and_then(|m| m.identity.as_ref())
-    //         .expect("identity should not be None in conflicts")
-    //         .value
-    //         .title;
-    //     println!("Title: {}", title.primary_title);
-    //     println!("Year: {}", title.year);
-    //     println!("URL: https://imdb.com/title/{}/", title.title_id.full());
-    //     for movie in movies {
-    //         println!("Path: {}", movie.path.display());
-    //     }
-    //     println!();
-    // }
-
-    // println!("Matches (movies to be imported)");
-    // println!("=======");
-    // for movie in classified.matches {
-    //     let identity = movie.identity.expect("identity should not be None in print");
-    //     let title = identity.value.title;
-    //     println!("Path: {}", movie.path.display());
-    //     println!("Name: {}", movie.path.file_name().and_then(|s| s.to_str()).unwrap());
-    //     println!("Title: {}", title.primary_title);
-    //     println!("Year: {}", title.year);
-    //     println!("URL: https://imdb.com/title/{}/", );
-    //     println!("Score: {:0.3}", identity.score);
-    //     println!();
-    // }
+        let html_path = env::temp_dir().join("mero-view-report.html");
+        let mut file = File::create(&html_path)?;
+        write!(
+            file,
+            "{}",
+            tera.render("view.html", &display).expect("error rendering report")
+        )?;
+        file.flush()?;
+        if open::that(&html_path).is_err() {
+            print_text_report(&classified);
+        }
+    } else {
+        print_text_report(&classified);
+    }
 
     Ok(())
 }

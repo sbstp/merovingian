@@ -1,9 +1,9 @@
-#![feature(proc_macro_hygiene)]
+//#![feature(proc_macro_hygiene)]
 #![allow(dead_code)]
 
 mod cmd;
-mod mero;
 mod config;
+mod mero;
 
 use std::fs::File;
 use std::io::BufWriter;
@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 use lynx::Request;
 use structopt::StructOpt;
 
-use crate::mero::{error::Result, index::Index, library::Library};
 use crate::config::Config;
+use crate::mero::{error::Result, index::Index, library::Library};
 
 const SRC_FILE_BASICS: &str = "title.basics.tsv.gz";
 const SRC_FILE_RATINGS: &str = "title.ratings.tsv.gz";
@@ -128,6 +128,8 @@ enum App {
     View {
         #[structopt(parse(from_os_str))]
         report: PathBuf,
+        #[structopt(short = "n", long = "no-html", help = "Do not show report in browser")]
+        no_html: bool,
     },
 }
 
@@ -206,8 +208,8 @@ fn main() -> Result<()> {
         App::Sync => {
             open_library(|config, mut library| cmd_sync(config, &mut library))?;
         }
-        App::View { report } => {
-            open_library(|_, library| cmd_view(&report, &library))?;
+        App::View { report, no_html } => {
+            open_library(|_, library| cmd_view(&report, &library, no_html))?;
         }
     }
 
