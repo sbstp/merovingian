@@ -2,6 +2,7 @@
 
 mod cmd;
 mod config;
+mod local_storage;
 mod mero;
 
 use std::fs::File;
@@ -12,6 +13,7 @@ use lynx::Request;
 use structopt::StructOpt;
 
 use crate::config::Config;
+use crate::local_storage::LocalStorage;
 use crate::mero::{error::Result, index::Index, library::Library};
 
 const SRC_FILE_BASICS: &str = "title.basics.tsv.gz";
@@ -85,8 +87,26 @@ pub fn load_or_create_index(config: &Config) -> Result<Index> {
 }
 
 #[derive(StructOpt)]
+enum CmdIgnore {
+    #[structopt(name = "add", about = "Add an ignored file or directory")]
+    Add {
+        #[structopt(parse(from_os_str))]
+        paths: Vec<PathBuf>,
+    },
+    #[structopt(name = "remove", about = "Remove an ignored file or directory")]
+    Remove {
+        #[structopt(parse(from_os_str))]
+        paths: Vec<PathBuf>,
+    },
+    #[structopt(name = "list", about = "List ignored files and directories")]
+    List,
+}
+
+#[derive(StructOpt)]
 #[structopt(name = "mero")]
 enum App {
+    #[structopt(name = "ignore", about = "Managed ignored files")]
+    Ignore(CmdIgnore),
     #[structopt(name = "import", about = "Import movies matched by the given scan report")]
     Import {
         #[structopt(parse(from_os_str))]
@@ -99,7 +119,7 @@ enum App {
         #[structopt(parse(from_os_str))]
         directory: PathBuf,
     },
-    #[structopt(name = "query", about = "")]
+    #[structopt(name = "query", about = "Query the library for movies")]
     Query {
         #[structopt(long = "title", help = "Title contains")]
         title: Option<String>,
@@ -178,6 +198,24 @@ fn main() -> Result<()> {
     use crate::cmd::*;
 
     match args {
+        App::Ignore(action) => {
+            with_config(|config| {
+                let local_storage = LocalStorage::open(config.local_storage_path())?;
+                match action {
+                    CmdIgnore::Add { paths } => {
+                        cmd_ignore_add(&config, local_storage, paths)?;
+                    }
+                    CmdIgnore::Remove { paths } => {
+                        cmd_ignore_remove(&config, local_storage, paths)?;
+                    }
+                    CmdIgnore::List => {
+                        cmd_ignore_list(local_storage);
+                    }
+                }
+
+                Ok(())
+            })?;
+        }
         App::Import { report } => {
             open_library(|config, mut library| cmd_import(config, report, &mut library))?;
         }
@@ -199,7 +237,10 @@ fn main() -> Result<()> {
             open_library(|config, mut library| cmd_rehash(config, &mut library))?;
         }
         App::Scan { directory, out } => {
-            open_all(|config, index, _| cmd_scan(&directory, out, config, &index))?;
+            open_all(|config, index, _| {
+                let local_storage = LocalStorage::open(config.local_storage_path())?;
+                cmd_scan(&directory, out, config, &index, &local_storage)
+            })?;
         }
         App::Stats => {
             open_library(|_, library| cmd_stats(&library))?;

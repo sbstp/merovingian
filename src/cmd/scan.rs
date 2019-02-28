@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::mero::{walk, Index, Result, Scanner, TMDB, utils, MovieFile};
-use crate::config::{Config};
+use crate::config::Config;
+use crate::local_storage::LocalStorage;
+use crate::mero::{utils, walk, Index, MovieFile, Result, Scanner, TMDB};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Report {
@@ -33,11 +34,12 @@ pub fn cmd_scan(
     save_path: impl Into<Option<PathBuf>>,
     config: Config,
     index: &Index,
+    local_storage: &LocalStorage,
 ) -> Result {
     let import_path = import_path.as_ref();
     println!("Scanning import path {}", import_path.display());
 
-    let root = walk(import_path)?;
+    let root = walk(import_path, &local_storage.ignored)?;
     let tmdb = TMDB::new(config.tmdb_cache_path());
     let mut scanner = Scanner::new(tmdb);
 

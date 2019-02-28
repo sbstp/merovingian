@@ -1,4 +1,5 @@
 use std::cmp::{Eq, PartialEq};
+use std::collections::BTreeSet;
 use std::fmt;
 use std::fs::Metadata;
 use std::hash::{Hash, Hasher};
@@ -159,10 +160,10 @@ impl Iterator for DescendantsIter<'_> {
     }
 }
 
-pub fn walk(root: impl AsRef<Path>) -> io::Result<File> {
+pub fn walk(root: impl AsRef<Path>, ignored: &BTreeSet<PathBuf>) -> io::Result<File> {
     let mut tree = Tree::new();
 
-    match walk_rec(&mut tree, root.as_ref().to_owned(), None)? {
+    match walk_rec(&mut tree, root.as_ref().to_owned(), None, ignored)? {
         Some(node) => Ok(File {
             tree: Rc::new(tree),
             node,
@@ -171,7 +172,16 @@ pub fn walk(root: impl AsRef<Path>) -> io::Result<File> {
     }
 }
 
-fn walk_rec(tree: &mut Tree<FileNode>, path: PathBuf, parent: Option<NodeId>) -> io::Result<Option<NodeId>> {
+fn walk_rec(
+    tree: &mut Tree<FileNode>,
+    path: PathBuf,
+    parent: Option<NodeId>,
+    ignored: &BTreeSet<PathBuf>,
+) -> io::Result<Option<NodeId>> {
+    if ignored.contains(&path) {
+        return Ok(None);
+    }
+
     let metadata = path.metadata()?;
 
     if !metadata.is_dir() && !metadata.is_file() {
@@ -194,7 +204,7 @@ fn walk_rec(tree: &mut Tree<FileNode>, path: PathBuf, parent: Option<NodeId>) ->
     if file_node.metadata.is_dir() {
         for entry in file_node.path.read_dir()? {
             let entry = entry?;
-            walk_rec(tree, entry.path(), Some(node))?;
+            walk_rec(tree, entry.path(), Some(node), ignored)?;
         }
     }
 

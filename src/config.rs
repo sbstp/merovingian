@@ -39,6 +39,10 @@ impl Config {
         utils::serialize_json(CONFIG_PATH.as_path(), self)
     }
 
+    pub fn local_storage_path(&self) -> PathBuf {
+        CONFIG_DIR.join("local_storage.bin.gz")
+    }
+
     pub fn root_path(&self) -> &Path {
         &self.root_path
     }

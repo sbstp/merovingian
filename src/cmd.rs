@@ -1,3 +1,4 @@
+mod ignore;
 mod images;
 mod import;
 mod init;
@@ -8,6 +9,7 @@ mod stats;
 mod sync;
 mod view;
 
+pub use self::ignore::{cmd_ignore_add, cmd_ignore_list, cmd_ignore_remove};
 pub use self::images::cmd_images;
 pub use self::import::cmd_import;
 pub use self::init::cmd_init;
