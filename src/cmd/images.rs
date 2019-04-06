@@ -1,4 +1,5 @@
-use crate::mero::{Library, RelativePath, Result, TMDB};
+use crate::mero::{Library, RelativePath, Result};
+use crate::service::TMDB;
 use crate::Config;
 
 pub fn cmd_images(config: Config, library: &mut Library) -> Result {

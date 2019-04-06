@@ -226,8 +226,9 @@ impl Drop for MoviesMutGuard<'_> {
 #[cfg(test)]
 mod tests {
     use crate::index::{Title, TitleId};
-    use crate::mero::{tmdb, Fingerprint, Library, RelativePath};
+    use crate::mero::{Fingerprint, Library, RelativePath};
     use crate::scan::MovieIdentity;
+    use crate::service::tmdb;
 
     fn make_dummy_identity() -> MovieIdentity {
         MovieIdentity {
