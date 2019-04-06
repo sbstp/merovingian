@@ -5,7 +5,6 @@ use std::thread;
 use std::time::Duration;
 
 use hashbrown::HashMap;
-use lynx::Request;
 use serde::{Deserialize, Serialize};
 
 use crate::mero::{utils, Result, TitleId};
@@ -66,11 +65,11 @@ impl TMDB {
             API_KEY
         );
 
-        let (status, _, resp) = Request::get(&url).send()?;
+        let resp = attohttpc::get(&url).send()?;
         thread::sleep(Duration::from_millis(250));
 
-        if status.is_success() {
-            let result: FindResult = serde_json::from_str(&resp.string()?)?;
+        if resp.is_success() {
+            let result: FindResult = resp.json()?;
             let info = result.movie_results.into_iter().next();
             if let Some(info) = &info {
                 self.cache.insert(title_id, info.clone());
@@ -85,8 +84,8 @@ impl TMDB {
     pub fn get_save_image(&self, path: &str, outpath: impl AsRef<Path>) -> Result<()> {
         let mut writer = BufWriter::new(File::create(outpath.as_ref())?);
         let url = format!("https://image.tmdb.org/t/p/original/{}", path);
-        let (status, _, resp) = Request::get(&url).send()?;
-        if status.is_success() {
+        let resp = attohttpc::get(&url).send()?;
+        if resp.is_success() {
             resp.write_to(&mut writer)?;
         }
         Ok(())

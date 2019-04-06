@@ -9,7 +9,6 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
-use lynx::Request;
 use structopt::StructOpt;
 
 use crate::config::Config;
@@ -38,13 +37,13 @@ where
 }
 
 fn download_file(url: &str, dest: impl AsRef<Path>) -> Result<()> {
-    let (status, _, resp) = Request::get(url).send()?;
-    if status.is_success() {
+    let resp = attohttpc::get(url).send()?;
+    if resp.is_success() {
         let file = BufWriter::new(File::create(dest)?);
         resp.write_to(file)?;
         Ok(())
     } else {
-        eprintln!("Error fetching '{}' : code {}", url, status.as_u16());
+        eprintln!("Error fetching '{}' : code {}", url, resp.status().as_u16());
         panic!();
     }
 }

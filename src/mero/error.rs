@@ -14,7 +14,7 @@ pub enum Error {
     Io(io::Error),
     Json(serde_json::Error),
     ParseIntError(ParseIntError),
-    Http(lynx::HttpError),
+    Http(attohttpc::Error),
     SpawnError(String),
     Transfer {
         src: Option<io::Error>,
@@ -127,8 +127,8 @@ impl From<ParseIntError> for Error {
     }
 }
 
-impl From<lynx::HttpError> for Error {
-    fn from(err: lynx::HttpError) -> Error {
+impl From<attohttpc::Error> for Error {
+    fn from(err: attohttpc::Error) -> Error {
         Error::Http(err)
     }
 }
