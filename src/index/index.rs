@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::counter::Counter;
 use super::fixed_string::FixedString;
 use crate::mero::error::Result;
-use crate::mero::utils::{self, NonNan};
+use crate::utils::{self, NonNan};
 
 const MIN_VOTES: u32 = 25;
 

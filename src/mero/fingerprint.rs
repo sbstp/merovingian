@@ -7,7 +7,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::mero::SafeBuffer;
+use crate::utils::SafeBuffer;
 
 const BLOCK_SIZE: u64 = 64 * 1024; // 64 KiB
 const BYTE_SIZE: usize = 32;

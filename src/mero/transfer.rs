@@ -3,7 +3,8 @@ use std::fs::{self, DirBuilder};
 use std::io::Write;
 use std::path::PathBuf;
 
-use super::{Result, SafeBuffer};
+use crate::utils::SafeBuffer;
+use crate::Result;
 
 #[derive(Debug)]
 pub enum Status {

@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
-use crate::mero::{utils, Result};
+use crate::mero::Result;
+use crate::utils;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {

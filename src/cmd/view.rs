@@ -11,7 +11,8 @@ use serde::Serialize;
 use crate::cmd::scan::Report;
 use crate::index::{Title, TitleId};
 use crate::mero::scan::PathSize;
-use crate::mero::{Library, MovieFile, NonNan, Result};
+use crate::mero::{Library, MovieFile, Result};
+use crate::utils::NonNan;
 
 #[derive(Serialize)]
 pub struct Classified {

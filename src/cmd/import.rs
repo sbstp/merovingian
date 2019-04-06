@@ -11,7 +11,8 @@ use signal_hook::{SIGINT, SIGTERM};
 
 use crate::cmd::scan::Report;
 use crate::config::Config;
-use crate::mero::{library, utils::clean_path, Library, Manager, RelativePath, Result, SubtitleFile, Transfer};
+use crate::mero::{library, Library, Manager, RelativePath, Result, SubtitleFile, Transfer};
+use crate::utils::clean_path;
 
 use super::view::Classified;
 

@@ -8,7 +8,8 @@ use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::index::TitleId;
-use crate::mero::{utils, Result};
+use crate::mero::Result;
+use crate::utils;
 
 const API_KEY: &'static str = "89049522cb87421d059ed3fd5bae460c";
 

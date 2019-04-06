@@ -5,9 +5,7 @@ use std::io::{self, BufReader, BufWriter, Read};
 use std::ops::Deref;
 use std::path::Path;
 
-use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
-use flate2::Compression;
+use libflate::gzip::{Decoder, Encoder};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use super::Result;
@@ -136,7 +134,7 @@ pub fn serialize_bin<T: Serialize>(path: impl AsRef<Path>, obj: &T) -> Result {
 }
 
 pub fn serialize_bin_gz<T: Serialize>(path: impl AsRef<Path>, obj: &T) -> Result {
-    let writer = GzEncoder::new(File::create(path.as_ref())?, Compression::default());
+    let writer = Encoder::new(File::create(path.as_ref())?)?;
     bincode::serialize_into(writer, obj)?;
     Ok(())
 }
@@ -148,7 +146,7 @@ pub fn deserialize_bin<T: DeserializeOwned>(path: impl AsRef<Path>) -> Result<T>
 }
 
 pub fn deserialize_bin_gz<T: DeserializeOwned>(path: impl AsRef<Path>) -> Result<T> {
-    let reader = GzDecoder::new(File::open(path.as_ref())?);
+    let reader = Decoder::new(File::open(path.as_ref())?)?;
     let obj = bincode::deserialize_from(reader)?;
     Ok(obj)
 }

@@ -6,7 +6,6 @@ pub mod scan;
 pub mod tmdb;
 pub mod transfer;
 pub mod tree;
-pub mod utils;
 pub mod vfs;
 
 pub use self::error::{Error, Result};
@@ -15,5 +14,4 @@ pub use self::library::{Library, Movie, RelativePath, Subtitle};
 pub use self::scan::{MovieFile, MovieIdentity, Scanner, SubtitleFile};
 pub use self::tmdb::TMDB;
 pub use self::transfer::{Manager, Transfer};
-pub use self::utils::{NonNan, SafeBuffer};
 pub use self::vfs::{walk, File};

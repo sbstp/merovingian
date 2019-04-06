@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::mero::utils;
 use crate::mero::Result;
+use crate::utils;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LocalStorage {
