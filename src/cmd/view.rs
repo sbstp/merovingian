@@ -1,12 +1,11 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use hashbrown::HashMap;
-use tera::Tera;
-
 use serde::Serialize;
+use tera::Tera;
 
 use crate::cmd::scan::Report;
 use crate::index::{Title, TitleId};

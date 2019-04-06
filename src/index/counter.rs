@@ -1,7 +1,7 @@
 use std::hash::Hash;
 use std::ops::Index;
 
-use hashbrown::{
+use std::collections::{
     hash_map::{Iter, Keys, Values},
     HashMap,
 };

@@ -1,10 +1,10 @@
+use std::collections::HashSet;
 use std::fs;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 use chardet;
 use encoding_rs::Encoding;
-use hashbrown::HashSet;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use subparse::{self, SubtitleFormat};

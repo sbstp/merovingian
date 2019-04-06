@@ -1,7 +1,7 @@
+use std::collections::HashSet;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
-use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
 use super::{Fingerprint, MovieIdentity, Result};

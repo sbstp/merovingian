@@ -1,10 +1,10 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
 
-use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::index::TitleId;
