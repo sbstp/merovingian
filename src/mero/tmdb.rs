@@ -7,7 +7,8 @@ use std::time::Duration;
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::mero::{utils, Result, TitleId};
+use crate::index::TitleId;
+use crate::mero::{utils, Result};
 
 const API_KEY: &'static str = "89049522cb87421d059ed3fd5bae460c";
 

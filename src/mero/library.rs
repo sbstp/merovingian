@@ -5,7 +5,8 @@ use hashbrown::HashSet;
 use serde::{Deserialize, Serialize};
 
 use super::utils::{self, VecAccess, VecAccessKey, VecAccessKeyIter};
-use super::{Fingerprint, MovieIdentity, Result, TitleId};
+use super::{Fingerprint, MovieIdentity, Result};
+use crate::index::TitleId;
 
 #[derive(Deserialize, Serialize, Eq, PartialEq, Clone, Debug)]
 pub struct RelativePath(PathBuf);
@@ -223,7 +224,8 @@ impl Drop for MoviesMutGuard<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::mero::{tmdb, Fingerprint, Library, MovieIdentity, RelativePath, Title, TitleId};
+    use crate::mero::{tmdb, Fingerprint, Library, MovieIdentity, RelativePath};
+    use crate::index::{Title, TitleId};
 
     fn make_dummy_identity() -> MovieIdentity {
         MovieIdentity {

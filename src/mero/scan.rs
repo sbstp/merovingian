@@ -11,7 +11,8 @@ use subparse::{self, SubtitleFormat};
 use whatlang;
 
 use super::tmdb::{self, TMDB};
-use super::{fingerprint, File, Fingerprint, Index, Result, SafeBuffer, Scored, Title};
+use super::{fingerprint, File, Fingerprint, Result, SafeBuffer};
+use crate::index::{Index, Scored, Title};
 
 lazy_static! {
     static ref VIDEO_EXT: Vec<&'static str> =

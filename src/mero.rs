@@ -1,8 +1,6 @@
-pub mod collections;
 pub mod error;
 pub mod ffprobe;
 pub mod fingerprint;
-pub mod index;
 pub mod library;
 pub mod scan;
 pub mod tmdb;
@@ -13,7 +11,6 @@ pub mod vfs;
 
 pub use self::error::{Error, Result};
 pub use self::fingerprint::Fingerprint;
-pub use self::index::{Index, Scored, Title, TitleId};
 pub use self::library::{Library, Movie, RelativePath, Subtitle};
 pub use self::scan::{MovieFile, MovieIdentity, Scanner, SubtitleFile};
 pub use self::tmdb::TMDB;

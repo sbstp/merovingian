@@ -3,8 +3,9 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
+use crate::index::Index;
 use crate::local_storage::LocalStorage;
-use crate::mero::{utils, walk, Index, MovieFile, Result, Scanner, TMDB};
+use crate::mero::{utils, walk, MovieFile, Result, Scanner, TMDB};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Report {

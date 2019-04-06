@@ -2,6 +2,7 @@
 
 mod cmd;
 mod config;
+mod index;
 mod local_storage;
 mod mero;
 
@@ -13,7 +14,9 @@ use structopt::StructOpt;
 
 use crate::config::Config;
 use crate::local_storage::LocalStorage;
-use crate::mero::{error::Result, index::Index, library::Library};
+
+use crate::index::Index;
+use crate::mero::{error::Result, library::Library};
 
 const SRC_FILE_BASICS: &str = "title.basics.tsv.gz";
 const SRC_FILE_RATINGS: &str = "title.ratings.tsv.gz";

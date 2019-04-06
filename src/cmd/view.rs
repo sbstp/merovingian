@@ -9,8 +9,9 @@ use tera::Tera;
 use serde::Serialize;
 
 use crate::cmd::scan::Report;
+use crate::index::{Title, TitleId};
 use crate::mero::scan::PathSize;
-use crate::mero::{Library, MovieFile, NonNan, Result, Title, TitleId};
+use crate::mero::{Library, MovieFile, NonNan, Result};
 
 #[derive(Serialize)]
 pub struct Classified {

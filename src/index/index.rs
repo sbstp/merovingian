@@ -1,15 +1,16 @@
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::Path;
 use std::str::FromStr;
 
 use csv;
-use flate2::read::GzDecoder;
-use hashbrown::{HashMap, HashSet};
+use libflate::gzip::Decoder;
 use serde::{Deserialize, Serialize};
 
-use super::collections::{Counter, FixedString};
-use super::error::Result;
-use super::utils::{self, NonNan};
+use super::counter::Counter;
+use super::fixed_string::FixedString;
+use crate::mero::error::Result;
+use crate::mero::utils::{self, NonNan};
 
 const MIN_VOTES: u32 = 25;
 
@@ -36,13 +37,13 @@ pub struct Title {
     pub vote_count: u32,
 }
 
-fn open_csv(path: &Path) -> Result<csv::Reader<GzDecoder<File>>> {
+fn open_csv(path: &Path) -> Result<csv::Reader<Decoder<File>>> {
     let file = File::open(path)?;
     Ok(csv::ReaderBuilder::new()
         .delimiter(b'\t')
         .flexible(true)
         .quoting(false)
-        .from_reader(GzDecoder::new(file)))
+        .from_reader(Decoder::new(file)?))
 }
 
 fn parse_none<T: FromStr>(record: &str) -> Option<T> {
