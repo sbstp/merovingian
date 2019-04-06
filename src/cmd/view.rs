@@ -9,8 +9,8 @@ use tera::Tera;
 
 use crate::cmd::scan::Report;
 use crate::index::{Title, TitleId};
-use crate::mero::scan::PathSize;
-use crate::mero::{Library, MovieFile, Result};
+use crate::mero::{Library, Result};
+use crate::scan::{MovieFile, PathSize};
 use crate::utils::NonNan;
 
 #[derive(Serialize)]

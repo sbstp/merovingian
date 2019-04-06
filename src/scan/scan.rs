@@ -10,9 +10,10 @@ use serde::{Deserialize, Serialize};
 use subparse::{self, SubtitleFormat};
 use whatlang;
 
-use super::tmdb::{self, TMDB};
-use super::{fingerprint, File, Fingerprint, Result};
+use super::vfs::File;
 use crate::index::{Index, Scored, Title};
+use crate::mero::tmdb::{self, TMDB};
+use crate::mero::{fingerprint, Fingerprint, Result};
 use crate::utils::SafeBuffer;
 
 lazy_static! {

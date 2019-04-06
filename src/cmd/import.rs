@@ -9,12 +9,12 @@ use lazy_static::lazy_static;
 use signal_hook::flag as signal;
 use signal_hook::{SIGINT, SIGTERM};
 
+use super::view::Classified;
 use crate::cmd::scan::Report;
 use crate::config::Config;
-use crate::mero::{library, Library, Manager, RelativePath, Result, SubtitleFile, Transfer};
+use crate::mero::{library, Library, Manager, RelativePath, Result, Transfer};
+use crate::scan::SubtitleFile;
 use crate::utils::clean_path;
-
-use super::view::Classified;
 
 fn make_movie_path(primary_title: &str, year: u16, ext: &str) -> RelativePath {
     let mut path = PathBuf::new();

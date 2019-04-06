@@ -5,6 +5,7 @@ mod config;
 mod index;
 mod local_storage;
 mod mero;
+mod scan;
 mod utils;
 
 use std::fs::File;
