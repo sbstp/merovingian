@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use super::{Fingerprint, Result};
+use super::{Result};
+use crate::io::Fingerprint;
 use crate::index::TitleId;
 use crate::scan::MovieIdentity;
 use crate::utils::{self, VecAccess, VecAccessKey, VecAccessKeyIter};
@@ -226,7 +227,8 @@ impl Drop for MoviesMutGuard<'_> {
 #[cfg(test)]
 mod tests {
     use crate::index::{Title, TitleId};
-    use crate::mero::{Fingerprint, Library, RelativePath};
+    use crate::io::Fingerprint;
+    use crate::mero::{Library, RelativePath};
     use crate::scan::MovieIdentity;
     use crate::service::tmdb;
 

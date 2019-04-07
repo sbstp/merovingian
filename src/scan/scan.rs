@@ -12,7 +12,8 @@ use whatlang;
 
 use super::vfs::File;
 use crate::index::{Index, Scored, Title};
-use crate::mero::{fingerprint, Fingerprint, Result};
+use crate::io::{fingerprint, Fingerprint};
+use crate::mero::Result;
 use crate::service::tmdb::{self, TMDB};
 use crate::utils::SafeBuffer;
 

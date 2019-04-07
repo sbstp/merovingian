@@ -3,6 +3,7 @@
 mod cmd;
 mod config;
 mod index;
+mod io;
 mod local_storage;
 mod mero;
 mod scan;
