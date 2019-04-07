@@ -1,5 +1,6 @@
-use crate::mero::{Library, Result};
 use crate::config::Config;
+use crate::error::Result;
+use crate::mero::Library;
 
 pub fn cmd_sync(config: Config, library: &mut Library) -> Result {
     let root_path = config.root_path();

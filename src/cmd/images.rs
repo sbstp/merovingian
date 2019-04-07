@@ -1,4 +1,5 @@
-use crate::mero::{Library, RelativePath, Result};
+use crate::error::Result;
+use crate::mero::{Library, RelativePath};
 use crate::service::TMDB;
 use crate::Config;
 

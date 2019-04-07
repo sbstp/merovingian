@@ -1,6 +1,7 @@
 use crate::config::Config;
+use crate::error::Result;
 use crate::io::fingerprint;
-use crate::mero::{Library, Result};
+use crate::mero::Library;
 
 pub fn cmd_rehash(config: Config, library: &mut Library) -> Result {
     let root_path = config.root_path();

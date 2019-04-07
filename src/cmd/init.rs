@@ -1,8 +1,9 @@
 use std::fs::DirBuilder;
 use std::path::PathBuf;
 
-use crate::mero::{Library, Result};
 use crate::config::Config;
+use crate::error::Result;
+use crate::mero::Library;
 
 pub fn cmd_init(root_path: impl Into<PathBuf>) -> Result {
     let root_path = root_path.into();

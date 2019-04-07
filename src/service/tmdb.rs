@@ -8,8 +8,8 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::index::TitleId;
-use crate::mero::Result;
 use crate::utils;
+use crate::Result;
 
 const API_KEY: &'static str = "89049522cb87421d059ed3fd5bae460c";
 

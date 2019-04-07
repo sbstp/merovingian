@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use super::{Result};
-use crate::io::Fingerprint;
+use crate::error::Result;
 use crate::index::TitleId;
+use crate::io::Fingerprint;
 use crate::scan::MovieIdentity;
 use crate::utils::{self, VecAccess, VecAccessKey, VecAccessKeyIter};
 

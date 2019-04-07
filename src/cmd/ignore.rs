@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::config::Config;
+use crate::error::Result;
 use crate::local_storage::LocalStorage;
-use crate::mero::Result;
 
 pub fn cmd_ignore_add(
     config: &Config,

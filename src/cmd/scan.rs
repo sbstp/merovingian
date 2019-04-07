@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
+use crate::error::Result;
 use crate::index::Index;
 use crate::local_storage::LocalStorage;
-use crate::mero::Result;
 use crate::scan::{walk, MovieFile, Scanner};
 use crate::service::TMDB;
 use crate::utils;

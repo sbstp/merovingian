@@ -2,6 +2,7 @@
 
 mod cmd;
 mod config;
+mod error;
 mod index;
 mod io;
 mod local_storage;
@@ -17,10 +18,10 @@ use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 use crate::config::Config;
-use crate::local_storage::LocalStorage;
-
+use crate::error::Result;
 use crate::index::Index;
-use crate::mero::{error::Result, library::Library};
+use crate::local_storage::LocalStorage;
+use crate::mero::library::Library;
 
 const SRC_FILE_BASICS: &str = "title.basics.tsv.gz";
 const SRC_FILE_RATINGS: &str = "title.ratings.tsv.gz";

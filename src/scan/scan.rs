@@ -11,9 +11,9 @@ use subparse::{self, SubtitleFormat};
 use whatlang;
 
 use super::vfs::File;
+use crate::error::Result;
 use crate::index::{Index, Scored, Title};
 use crate::io::{fingerprint, Fingerprint};
-use crate::mero::Result;
 use crate::service::tmdb::{self, TMDB};
 use crate::utils::SafeBuffer;
 

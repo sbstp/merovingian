@@ -1,4 +1,5 @@
-use crate::mero::{Library, Movie, Result};
+use crate::error::Result;
+use crate::mero::{Library, Movie};
 
 pub fn cmd_query(
     library: &Library,

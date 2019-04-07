@@ -8,8 +8,9 @@ use serde::Serialize;
 use tera::Tera;
 
 use crate::cmd::scan::Report;
+use crate::error::Result;
 use crate::index::{Title, TitleId};
-use crate::mero::{Library, Result};
+use crate::mero::Library;
 use crate::scan::{MovieFile, PathSize};
 use crate::utils::NonNan;
 
