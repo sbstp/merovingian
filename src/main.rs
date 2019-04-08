@@ -5,6 +5,7 @@ mod config;
 mod error;
 mod index;
 mod io;
+mod library;
 mod local_storage;
 mod mero;
 mod scan;

@@ -15,6 +15,7 @@ pub enum Error {
     Json(serde_json::Error),
     ParseIntError(ParseIntError),
     Http(attohttpc::Error),
+    Sqlite(rusqlite::Error),
     SpawnError(String),
     Transfer {
         src: Option<io::Error>,
@@ -130,5 +131,11 @@ impl From<ParseIntError> for Error {
 impl From<attohttpc::Error> for Error {
     fn from(err: attohttpc::Error) -> Error {
         Error::Http(err)
+    }
+}
+
+impl From<rusqlite::Error> for Error {
+    fn from(err: rusqlite::Error) -> Error {
+        Error::Sqlite(err)
     }
 }

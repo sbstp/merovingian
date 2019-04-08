@@ -15,7 +15,7 @@ use crate::utils::{self, NonNan};
 const MIN_VOTES: u32 = 25;
 
 #[derive(Debug, Deserialize, Serialize, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct TitleId(u32);
+pub struct TitleId(pub u32);
 
 impl TitleId {
     pub fn new(id: u32) -> TitleId {

@@ -24,6 +24,15 @@ impl Fingerprint {
         }
         Fingerprint(fp)
     }
+
+    pub fn from_string(s: String) -> Fingerprint {
+        Fingerprint(s)
+    }
+
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 fn hash(bytes: &[u8]) -> Fingerprint {
