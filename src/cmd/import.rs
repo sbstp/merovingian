@@ -14,22 +14,22 @@ use crate::cmd::scan::Report;
 use crate::config::Config;
 use crate::error::Result;
 use crate::io::transfer::{Manager, Transfer};
-use crate::mero::{library, Library, RelativePath};
-use crate::scan::SubtitleFile;
+use crate::library::{self, Library};
+use crate::scan::{RelPath, SubtitleFile};
 use crate::utils::clean_path;
 
-fn make_movie_path(primary_title: &str, year: u16, ext: &str) -> RelativePath {
+fn make_movie_path(primary_title: &str, year: u16, ext: &str) -> RelPath {
     let mut path = PathBuf::new();
     let cleaned_name = clean_path(&format!("{} ({})", primary_title, year));
     let dotted_name = cleaned_name.replace(" ", ".");
     path.push(&dotted_name);
     path.push(format!("{}.{}", dotted_name, ext.to_lowercase()));
-    RelativePath::new(path)
+    RelPath::new(path).unwrap()
 }
 
-fn make_subtitle_path(movie_path: &Path, subtitle: &SubtitleFile) -> RelativePath {
+fn make_subtitle_path(movie_path: &Path, subtitle: &SubtitleFile) -> RelPath {
     let ext = format!("{}.{}", subtitle.lang, &subtitle.ext);
-    RelativePath::new(movie_path.with_extension(&ext))
+    RelPath::new(movie_path.with_extension(&ext)).unwrap()
 }
 
 fn print_transfer(transfer: &Transfer) {
@@ -50,7 +50,7 @@ pub fn cmd_import(config: Config, path: impl AsRef<Path>, library: &mut Library)
     let path = path.as_ref();
 
     let report = Report::load(path)?;
-    let classified = Classified::classify(&library, report.movies);
+    let classified = Classified::classify(&library, report.movies)?;
 
     let mut finished = 0;
     let len = classified.matches.len();
@@ -70,17 +70,32 @@ pub fn cmd_import(config: Config, path: impl AsRef<Path>, library: &mut Library)
 
         manager.add_transfer(&movie.path(), root_path.join(&movie_path));
 
-        let mut lib_subtitles = vec![];
+        let mut lib_movie = library::Movie::new(
+            library::File::new(movie_path.clone(), movie.fingerprint.clone()),
+            title.title_id,
+            title.primary_title.clone(),
+            title.original_title.clone().unwrap_or(title.primary_title.clone()),
+            title.year,
+        );
 
         for sub in movie.subtitles.iter() {
             let subtitle_path = make_subtitle_path(&movie_path, &sub);
 
             manager.add_transfer(&sub.path(), root_path.join(&subtitle_path));
 
-            lib_subtitles.push(library::Subtitle {
-                path: subtitle_path,
-                fingerprint: sub.fingerprint.clone(),
-            });
+            lib_movie.subtitles.push(library::Subtitle::new(
+                library::File::new(subtitle_path, sub.fingerprint.clone()),
+                sub.lang.clone(),
+            ));
+
+            // TODO: better duplicate subtitle selection
+            lib_movie
+                .subtitles
+                .sort_by(|left, right| left.file.path.cmp(&right.file.path));
+
+            lib_movie
+                .subtitles
+                .dedup_by(|left, right| left.file.path == right.file.path);
         }
 
         let mut last = Instant::now();
@@ -120,8 +135,7 @@ pub fn cmd_import(config: Config, path: impl AsRef<Path>, library: &mut Library)
         println!("{}/{} files transfered", finished, len);
         println!("");
 
-        library.add_movie(identity, movie_path, movie.fingerprint.clone(), lib_subtitles);
-        library.commit()?;
+        library.save_movie(&lib_movie)?;
     }
 
     Ok(())

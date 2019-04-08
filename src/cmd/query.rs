@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::mero::{Library, Movie};
+use crate::library::Library;
 
 pub fn cmd_query(
     library: &Library,
@@ -15,49 +15,40 @@ pub fn cmd_query(
 
     let title = title.map(|t| t.to_lowercase());
 
-    let mut count = 0;
-
-    let mut movies: Vec<&Movie> = library
-        .movies()
-        .iter()
-        .filter(|m| {
-            if let Some(title) = &title {
-                if !m.identity.title.primary_title.to_lowercase().contains(&title[..]) {
-                    return false;
-                }
-                if let Some(original_title) = &m.identity.title.original_title {
-                    if !original_title.to_lowercase().contains(&title[..]) {
-                        return false;
-                    }
-                }
+    let mut movies = library.all_movies()?;
+    movies.retain(|m| {
+        if let Some(title) = &title {
+            if !m.primary_title.to_lowercase().contains(&title[..])
+                && !m.original_title.to_lowercase().contains(&title[..])
+            {
+                return false;
             }
-            if let Some(year) = year_gte {
-                if m.identity.title.year < year {
-                    return false;
-                }
+        }
+        if let Some(year) = year_gte {
+            if m.year < year {
+                return false;
             }
+        }
 
-            if let Some(year) = year_lte {
-                if m.identity.title.year > year {
-                    return false;
-                }
+        if let Some(year) = year_lte {
+            if m.year > year {
+                return false;
             }
+        }
 
-            true
-        })
-        .collect();
+        true
+    });
 
-    movies.sort_by_key(|m| (m.identity.title.year, &m.identity.title.primary_title));
+    movies.sort_by_key(|m| (m.year, m.primary_title.clone())); // TODO remove clone
 
-    for m in movies {
-        count += 1;
-        println!("Primary title: {}", m.identity.title.primary_title);
-        println!("Year: {}", m.identity.title.year);
-        println!("URL: https://imdb.com/title/{}/", m.identity.title.title_id.full());
+    for m in &movies {
+        println!("Primary title: {}", m.primary_title);
+        println!("Year: {}", m.year);
+        println!("URL: https://imdb.com/title/{}/", m.imdb_id.full());
         println!();
     }
 
-    println!("{} results.", count);
+    println!("{} results.", movies.len());
 
     Ok(())
 }

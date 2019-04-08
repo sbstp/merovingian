@@ -10,7 +10,7 @@ use tera::Tera;
 use crate::cmd::scan::Report;
 use crate::error::Result;
 use crate::index::{Title, TitleId};
-use crate::mero::Library;
+use crate::library::Library;
 use crate::scan::{MovieFile, PathSize};
 use crate::utils::NonNan;
 
@@ -24,7 +24,7 @@ pub struct Classified {
 }
 
 impl Classified {
-    pub fn classify(library: &Library, movies: Vec<MovieFile>) -> Classified {
+    pub fn classify(library: &Library, movies: Vec<MovieFile>) -> Result<Classified> {
         let mut ignored = vec![];
         let mut unmatched = vec![];
         let mut duplicates = vec![];
@@ -32,10 +32,10 @@ impl Classified {
 
         for movie in movies {
             if let Some(identity) = movie.identity.as_ref() {
-                if library.has_fingerprint(&movie.fingerprint) {
+                if library.has_fingerprint(&movie.fingerprint)? {
                     ignored.push(movie);
                 } else {
-                    if library.has_title(identity.value.title.title_id) {
+                    if library.has_title(&identity.value.title)? {
                         duplicates.push(movie);
                     } else {
                         movies_by_title
@@ -63,13 +63,13 @@ impl Classified {
         matches.sort_by_key(|m| m.identity.as_ref().expect("identity should not be None in sort").score);
         duplicates.sort_by_key(|m| m.identity.as_ref().expect("identity should not be None in sort").score);
 
-        Classified {
+        Ok(Classified {
             ignored,
             unmatched,
             duplicates,
             matches,
             conflicts,
-        }
+        })
     }
 }
 
@@ -266,7 +266,7 @@ pub fn cmd_view(path: impl AsRef<Path>, library: &Library, no_html: bool) -> Res
     let path = path.as_ref();
 
     let report = Report::load(path)?;
-    let classified = Classified::classify(library, report.movies);
+    let classified = Classified::classify(library, report.movies)?;
     let display = DisplayDto::from(&classified);
 
     if !no_html {

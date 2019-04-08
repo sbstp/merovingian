@@ -36,6 +36,7 @@ impl fmt::Display for Error {
             Json(e) => write!(w, "Error({})", e),
             ParseIntError(e) => write!(w, "Error({})", e),
             Http(e) => write!(w, "Error({})", e),
+            Sqlite(e) => write!(w, "Error({})", e),
             SpawnError(e) => write!(w, "Error(SpawnError({}))", e),
             Transfer { src, dst } => match (src, dst) {
                 (Some(e1), Some(e2)) => write!(w, "Error(Transfer(Both({}, {})))", e1, e2),
@@ -58,6 +59,7 @@ impl error::Error for Error {
             Json(e) => e.description(),
             ParseIntError(e) => e.description(),
             Http(e) => e.description(),
+            Sqlite(e) => e.description(),
             SpawnError(_) => "error spawning process",
             Transfer { src, dst } => match (src, dst) {
                 (Some(_), Some(_)) => "transfer error both source and destination",
@@ -78,6 +80,7 @@ impl error::Error for Error {
             Json(e) => e.source(),
             ParseIntError(e) => e.source(),
             Http(e) => e.source(),
+            Sqlite(e) => e.source(),
             SpawnError(_) => None,
             Transfer { src, dst } => match (src, dst) {
                 (Some(_), Some(_)) => None,

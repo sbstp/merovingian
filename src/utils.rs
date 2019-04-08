@@ -5,6 +5,7 @@ use std::io::{self, BufReader, BufWriter, Read};
 use std::ops::Deref;
 use std::path::Path;
 
+use libflate::finish::AutoFinish;
 use libflate::gzip::{Decoder, Encoder};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
@@ -134,7 +135,7 @@ pub fn serialize_bin<T: Serialize>(path: impl AsRef<Path>, obj: &T) -> Result {
 }
 
 pub fn serialize_bin_gz<T: Serialize>(path: impl AsRef<Path>, obj: &T) -> Result {
-    let writer = Encoder::new(File::create(path.as_ref())?)?;
+    let writer = AutoFinish::new(Encoder::new(File::create(path.as_ref())?)?);
     bincode::serialize_into(writer, obj)?;
     Ok(())
 }

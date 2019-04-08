@@ -7,7 +7,6 @@ mod index;
 mod io;
 mod library;
 mod local_storage;
-mod mero;
 mod scan;
 mod service;
 mod utils;
@@ -21,8 +20,8 @@ use structopt::StructOpt;
 use crate::config::Config;
 use crate::error::Result;
 use crate::index::Index;
+use crate::library::Library;
 use crate::local_storage::LocalStorage;
-use crate::mero::library::Library;
 
 const SRC_FILE_BASICS: &str = "title.basics.tsv.gz";
 const SRC_FILE_RATINGS: &str = "title.ratings.tsv.gz";

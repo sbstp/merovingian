@@ -41,7 +41,7 @@ impl From<&File> for PathSize {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MovieIdentity {
     pub title: Title,
-    pub tmdb_title: tmdb::Title,
+    // pub tmdb_title: tmdb::Title,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -259,16 +259,11 @@ impl Scanner {
 
                     if let Some(scored) = index.find(&title, Some(year)) {
                         let title = scored.value;
-                        println!("Looking up info on themoviedb.org for {}", child.path().display());
-                        if let Some(tmdb_title) = self.tmdb.find(title.title_id)? {
-                            identity = Some(Scored::new(
-                                scored.score,
-                                MovieIdentity {
-                                    title: title.clone(),
-                                    tmdb_title: tmdb_title,
-                                },
-                            ));
-                        }
+                        identity = Some(Scored::new(scored.score, MovieIdentity { title: title.clone() }));
+                        // println!("Looking up info on themoviedb.org for {}", child.path().display());
+                        // if let Some(tmdb_title) = self.tmdb.find(title.title_id)? {
+
+                        // }
                     }
 
                     results.push((
