@@ -1,13 +1,14 @@
 use std::path::{Path, PathBuf};
 
 use rusqlite::{params, Connection};
+use uuid::Uuid;
 
 use crate::error::Result;
 use crate::index::Title;
 use crate::io::Fingerprint;
 
 pub struct File {
-    id: u32,
+    id: Uuid,
     path: String, // TODO: RelativePath
     fingeprint: Fingerprint,
 }
@@ -23,7 +24,7 @@ pub struct Image {
 }
 
 pub struct Movie {
-    id: u32,
+    id: Uuid,
     file: File,
     imdb_id: u32,
     primary_title: String,
@@ -35,6 +36,10 @@ pub struct Movie {
 
 pub struct Library {
     con: Connection,
+}
+
+fn uuid_from_bytes(bytes: Vec<u8>) -> Uuid {
+    uuid::Builder::from_slice(&bytes).expect("invalid blob").build()
 }
 
 impl Library {
@@ -68,13 +73,13 @@ impl Library {
 
         while let Some(row) = rows.next()? {
             movies.push(Movie {
-                id: row.get(0)?,
+                id: uuid_from_bytes(row.get(0)?),
                 imdb_id: row.get(1)?,
                 primary_title: row.get(2)?,
                 original_title: row.get(3)?,
                 year: row.get(4)?,
                 file: File {
-                    id: row.get(5)?,
+                    id: uuid_from_bytes(row.get(5)?),
                     path: row.get(6)?,
                     fingeprint: Fingerprint::from_string(row.get(7)?),
                 },
@@ -90,7 +95,7 @@ impl Library {
         self.con.execute(
             "INSERT INTO file (id, path, fingerprint) VALUES (?, ?, ?)
              ON CONFLICT(id) SET (path, fingerprint) = (excluded.path, excluded.fingerprint)",
-            params![file.id, file.path, file.fingeprint.as_str()],
+            params![&file.id.as_bytes()[..], file.path, file.fingeprint.as_str()],
         )?;
         Ok(())
     }
@@ -104,8 +109,8 @@ impl Library {
              ON CONFLICT(id) SET (file_id, imdb_id, primary_title, original_title, year) =
                (excluded.file_id, excluded.imdb_id, excluded.primary_title, excluded.original_title, excluded.year)",
             params![
-                movie.id,
-                movie.file.id,
+                &movie.id.as_bytes()[..],
+                &movie.file.id.as_bytes()[..],
                 movie.imdb_id,
                 movie.primary_title,
                 movie.original_title,
@@ -118,7 +123,11 @@ impl Library {
             self.con.execute(
                 "INSERT INTO subtitle (movie_id, file_id, lang) VALUES (?, ?, ?)
                  ON CONFLICT (movie_id, file_id) SET lang = excluded.lang",
-                params![movie.id, subtitle.file.id, subtitle.lang],
+                params![
+                    &movie.id.as_bytes()[..],
+                    &subtitle.file.id.as_bytes()[..],
+                    subtitle.lang
+                ],
             )?;
         }
 
@@ -127,7 +136,7 @@ impl Library {
             self.con.execute(
                 "INSERT INTO image (movie_id, file_id, kind) VALUES (?, ?, ?)
                  ON CONFLICT (movie_id, file_id) SET kind = excluded.kind",
-                params![movie.id, image.file.id, image.kind],
+                params![&movie.id.as_bytes()[..], &image.file.id.as_bytes()[..], image.kind],
             )?;
         }
 
@@ -142,13 +151,13 @@ impl Library {
              INNER JOIN file f on f.id = s.file_id
              WHERE s.movie_id = ?",
         )?;
-        let mut rows = stmt.query(params![movie.id])?;
+        let mut rows = stmt.query(params![&movie.id.as_bytes()[..]])?;
 
         while let Some(row) = rows.next()? {
             movie.subtitles.push(Subtitle {
                 lang: row.get(0)?,
                 file: File {
-                    id: row.get(1)?,
+                    id: uuid_from_bytes(row.get(1)?),
                     path: row.get(2)?,
                     fingeprint: Fingerprint::from_string(row.get(3)?),
                 },
@@ -165,13 +174,13 @@ impl Library {
              INNER JOIN file f on f.id = i.file_id
              WHERE i.movie_id = ?",
         )?;
-        let mut rows = stmt.query(params![movie.id])?;
+        let mut rows = stmt.query(params![&movie.id.as_bytes()[..]])?;
 
         while let Some(row) = rows.next()? {
             movie.images.push(Image {
                 kind: row.get(0)?,
                 file: File {
-                    id: row.get(1)?,
+                    id: uuid_from_bytes(row.get(1)?),
                     path: row.get(2)?,
                     fingeprint: Fingerprint::from_string(row.get(3)?),
                 },
