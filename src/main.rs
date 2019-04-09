@@ -125,6 +125,8 @@ enum App {
     Init {
         #[structopt(parse(from_os_str))]
         directory: PathBuf,
+        #[structopt(short = "f", long = "force", help = "Overwrite existing config if it exists")]
+        force: bool,
     },
     #[structopt(name = "query", about = "Query the library for movies")]
     Query {
@@ -229,8 +231,8 @@ fn main() -> Result<()> {
         App::Images => {
             open_library(|config, mut library| cmd_images(config, &mut library))?;
         }
-        App::Init { directory } => {
-            cmd_init(directory)?;
+        App::Init { directory, force } => {
+            cmd_init(directory, force)?;
         }
         App::Query {
             title,

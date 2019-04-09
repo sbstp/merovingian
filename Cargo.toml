@@ -12,6 +12,7 @@ csv = "1"
 dirs = "1"
 encoding_rs = "0.8"
 lazy_static = "1"
+log = "0.4"
 libflate = "0.1"
 open = "1"
 rusqlite = { version = "0.17", features = ["bundled"] }

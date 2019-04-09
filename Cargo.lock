@@ -635,6 +635,7 @@ dependencies = [
  "encoding_rs 0.8.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libflate 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "open 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusqlite 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.82 (registry+https://github.com/rust-lang/crates.io-index)",

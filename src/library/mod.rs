@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use log::debug;
 use rusqlite::{params, Connection};
 use uuid::Uuid;
 
@@ -188,8 +189,8 @@ impl Library {
     }
 
     pub fn save_file(&self, file: &File) -> Result<()> {
-        println!("saving file");
-        println!("{}", file.path);
+        debug!("saving file path={}", file.path);
+
         self.con.execute(
             "INSERT INTO file (id, path, fingerprint) VALUES (?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET (path, fingerprint) = (excluded.path, excluded.fingerprint)",
@@ -199,8 +200,9 @@ impl Library {
     }
 
     pub fn save_subtitle(&self, movie_id: &Uuid, subtitle: &Subtitle) -> Result<()> {
+        debug!("saving subtitle lang={}", subtitle.lang);
+
         self.save_file(&subtitle.file)?;
-        println!("saving sub");
         self.con.execute(
             "INSERT INTO subtitle (movie_id, file_id, lang) VALUES (?, ?, ?)
                  ON CONFLICT(movie_id, file_id) DO UPDATE SET lang = excluded.lang",
@@ -214,6 +216,8 @@ impl Library {
     }
 
     pub fn save_image(&mut self, movie_id: &Uuid, image: &Image) -> Result<()> {
+        debug!("saving image kind={}", image.kind);
+
         self.save_file(&image.file)?;
         self.con.execute(
             "INSERT INTO image (movie_id, file_id, kind) VALUES (?, ?, ?)
@@ -224,7 +228,8 @@ impl Library {
     }
 
     pub fn save_movie(&mut self, movie: &Movie) -> Result<()> {
-        println!("saving movie");
+        debug!("saving movie title={}", movie.primary_title);
+
         self.save_file(&movie.file)?;
         self.con.execute(
             "INSERT INTO movie (id, file_id, imdb_id, primary_title, original_title, year) VALUES (?, ?, ?, ?, ?, ?)
@@ -252,12 +257,16 @@ impl Library {
     }
 
     pub fn delete_file(&self, file: &File) -> Result<()> {
+        debug!("deleting file path={}", file.path);
+
         self.con
             .execute("DELETE FROM file WHERE id = ?", params![&file.id.as_bytes()[..]])?;
         Ok(())
     }
 
     pub fn delete_subtitle(&mut self, movie_id: &Uuid, subtitle: &Subtitle) -> Result<()> {
+        debug!("deleting subtitle lang={}", subtitle.lang);
+
         self.con.execute(
             "DELETE FROM subtitle WHERE movie_id = ? AND file_id = ?",
             params![&movie_id.as_bytes()[..], &subtitle.file.id.as_bytes()[..]],
@@ -267,6 +276,8 @@ impl Library {
     }
 
     pub fn delete_image(&mut self, movie_id: &Uuid, image: &Image) -> Result<()> {
+        debug!("deleting image kind={}", image.kind);
+
         self.con.execute(
             "DELETE FROM image WHERE movie_id = ? AND file_id = ?",
             params![&movie_id.as_bytes()[..], &image.file.id.as_bytes()[..]],
@@ -276,6 +287,8 @@ impl Library {
     }
 
     pub fn delete_movie(&mut self, movie: &Movie) -> Result<()> {
+        debug!("deleting movie title={}", movie.primary_title);
+
         for subtitle in &movie.subtitles {
             self.delete_subtitle(&movie.id, subtitle)?;
         }

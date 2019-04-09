@@ -14,7 +14,6 @@ use super::vfs::File;
 use crate::error::Result;
 use crate::index::{Index, Scored, Title};
 use crate::io::{fingerprint, Fingerprint};
-use crate::service::tmdb::{self, TMDB};
 use crate::utils::SafeBuffer;
 
 lazy_static! {
@@ -41,7 +40,6 @@ impl From<&File> for PathSize {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MovieIdentity {
     pub title: Title,
-    // pub tmdb_title: tmdb::Title,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -139,14 +137,12 @@ fn parse_file_name(stem: &str) -> Option<(String, i32)> {
 
 pub struct Scanner {
     buff: SafeBuffer,
-    tmdb: TMDB,
 }
 
 impl Scanner {
-    pub fn new(tmdb: TMDB) -> Scanner {
+    pub fn new() -> Scanner {
         Scanner {
             buff: SafeBuffer::new(),
-            tmdb: tmdb,
         }
     }
 
