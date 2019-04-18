@@ -148,6 +148,7 @@ fn text_to_tokens(text: &str, tokens: &mut Vec<FixedString>) {
             tokens.push(FixedString::new(token));
         }
     }
+    tokens.sort_unstable();
     tokens.dedup();
 }
 

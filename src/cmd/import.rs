@@ -91,7 +91,7 @@ pub fn cmd_import(config: Config, path: impl AsRef<Path>, library: &mut Library)
             // TODO: better duplicate subtitle selection
             lib_movie
                 .subtitles
-                .sort_by(|left, right| left.file.path.cmp(&right.file.path));
+                .sort_unstable_by(|left, right| left.file.path.cmp(&right.file.path));
 
             lib_movie
                 .subtitles
