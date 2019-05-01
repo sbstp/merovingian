@@ -14,7 +14,6 @@ use super::vfs::File;
 use crate::error::Result;
 use crate::index::{Index, Scored, Title};
 use crate::io::{fingerprint, Fingerprint};
-use crate::service::tmdb::{self, TMDB};
 use crate::utils::SafeBuffer;
 
 lazy_static! {
@@ -41,7 +40,6 @@ impl From<&File> for PathSize {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MovieIdentity {
     pub title: Title,
-    pub tmdb_title: tmdb::Title,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -139,14 +137,12 @@ fn parse_file_name(stem: &str) -> Option<(String, i32)> {
 
 pub struct Scanner {
     buff: SafeBuffer,
-    tmdb: TMDB,
 }
 
 impl Scanner {
-    pub fn new(tmdb: TMDB) -> Scanner {
+    pub fn new() -> Scanner {
         Scanner {
             buff: SafeBuffer::new(),
-            tmdb: tmdb,
         }
     }
 
@@ -259,16 +255,11 @@ impl Scanner {
 
                     if let Some(scored) = index.find(&title, Some(year)) {
                         let title = scored.value;
-                        println!("Looking up info on themoviedb.org for {}", child.path().display());
-                        if let Some(tmdb_title) = self.tmdb.find(title.title_id)? {
-                            identity = Some(Scored::new(
-                                scored.score,
-                                MovieIdentity {
-                                    title: title.clone(),
-                                    tmdb_title: tmdb_title,
-                                },
-                            ));
-                        }
+                        identity = Some(Scored::new(scored.score, MovieIdentity { title: title.clone() }));
+                        // println!("Looking up info on themoviedb.org for {}", child.path().display());
+                        // if let Some(tmdb_title) = self.tmdb.find(title.title_id)? {
+
+                        // }
                     }
 
                     results.push((

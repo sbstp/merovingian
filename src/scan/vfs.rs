@@ -8,10 +8,11 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::SystemTime;
 
+use super::paths::AbsPath;
 use super::tree::{self, NodeId, Tree};
 
 struct FileNode {
-    path: PathBuf,
+    path: AbsPath,
     metadata: Metadata,
     mtime: SystemTime,
 }
@@ -188,25 +189,32 @@ fn walk_rec(
         return Ok(None);
     }
 
-    let file_node = FileNode {
-        path: path.canonicalize()?,
-        mtime: metadata.modified()?,
-        metadata,
-    };
+    let path = path.canonicalize()?;
+    if let Some(path) = AbsPath::new(&path) {
+        let file_node = FileNode {
+            path: path,
+            mtime: metadata.modified()?,
+            metadata,
+        };
 
-    let node = match parent {
-        Some(parent) => tree.insert_below(parent, file_node),
-        None => tree.insert_root(file_node),
-    };
+        let node = match parent {
+            Some(parent) => tree.insert_below(parent, file_node),
+            None => tree.insert_root(file_node),
+        };
 
-    let file_node = tree.data(node);
+        let file_node = tree.data(node);
 
-    if file_node.metadata.is_dir() {
-        for entry in file_node.path.read_dir()? {
-            let entry = entry?;
-            walk_rec(tree, entry.path(), Some(node), ignored)?;
+        if file_node.metadata.is_dir() {
+            for entry in file_node.path.read_dir()? {
+                let entry = entry?;
+                walk_rec(tree, entry.path(), Some(node), ignored)?;
+            }
         }
-    }
 
-    Ok(Some(node))
+        Ok(Some(node))
+    } else {
+        // TODO: warn!
+        eprintln!("Warning: path {} was ignored because it is not utf-8", path.display());
+        Ok(None)
+    }
 }

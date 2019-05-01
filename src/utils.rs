@@ -5,6 +5,7 @@ use std::io::{self, BufReader, BufWriter, Read};
 use std::ops::Deref;
 use std::path::Path;
 
+use libflate::finish::AutoFinish;
 use libflate::gzip::{Decoder, Encoder};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
@@ -134,7 +135,7 @@ pub fn serialize_bin<T: Serialize>(path: impl AsRef<Path>, obj: &T) -> Result {
 }
 
 pub fn serialize_bin_gz<T: Serialize>(path: impl AsRef<Path>, obj: &T) -> Result {
-    let writer = Encoder::new(File::create(path.as_ref())?)?;
+    let writer = AutoFinish::new(Encoder::new(File::create(path.as_ref())?)?);
     bincode::serialize_into(writer, obj)?;
     Ok(())
 }
@@ -168,53 +169,6 @@ impl Deref for SafeBuffer {
 
     fn deref(&self) -> &[u8] {
         &self.0
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct VecAccessKey(usize);
-
-pub struct VecAccessKeyIter {
-    current: usize,
-    max: usize,
-}
-
-impl Iterator for VecAccessKeyIter {
-    type Item = VecAccessKey;
-
-    fn next(&mut self) -> Option<VecAccessKey> {
-        if self.current < self.max {
-            let key = VecAccessKey(self.current);
-            self.current += 1;
-            Some(key)
-        } else {
-            None
-        }
-    }
-}
-
-pub trait VecAccess<T> {
-    fn access_keys(&self) -> VecAccessKeyIter;
-
-    fn access(&self, key: VecAccessKey) -> &T;
-
-    fn access_mut(&mut self, key: VecAccessKey) -> &mut T;
-}
-
-impl<T> VecAccess<T> for Vec<T> {
-    fn access_keys(&self) -> VecAccessKeyIter {
-        VecAccessKeyIter {
-            current: 0,
-            max: self.len(),
-        }
-    }
-
-    fn access(&self, key: VecAccessKey) -> &T {
-        &self[key.0]
-    }
-
-    fn access_mut(&mut self, key: VecAccessKey) -> &mut T {
-        &mut self[key.0]
     }
 }
 

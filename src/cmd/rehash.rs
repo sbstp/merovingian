@@ -1,38 +1,33 @@
 use crate::config::Config;
 use crate::error::Result;
 use crate::io::fingerprint;
-use crate::mero::Library;
+use crate::library::Library;
 
 pub fn cmd_rehash(config: Config, library: &mut Library) -> Result {
     let root_path = config.root_path();
 
-    for key in library.movie_access_keys() {
-        let mut movie = library.movie_mut(key);
+    for mut movie in library.all_movies()? {
+        println!("Checking movie {}", movie.file.path);
+        let fp = fingerprint::file(root_path.join(&movie.file.path))?;
 
-        println!("Checking movie {}", movie.path.display());
-        let fp = fingerprint::file(root_path.join(&movie.path))?;
-
-        if fp != movie.fingerprint {
-            println!("{:?} => {:?}", movie.fingerprint, fp);
+        if fp != movie.file.fingerprint {
+            println!("{:?} => {:?}", movie.file.fingerprint, fp);
             println!();
-            movie.fingerprint = fp;
-        }
-        for sub in movie.subtitles.iter_mut() {
-            println!("Checking subtitle {}", sub.path.display());
-            let fp = fingerprint::file(root_path.join(&sub.path))?;
-
-            if fp != sub.fingerprint {
-                println!("{:?} => {:?}", sub.fingerprint, fp);
-                println!();
-                sub.fingerprint = fp;
-            }
+            movie.file.fingerprint = fp;
+            library.save_file(&movie.file)?;
         }
 
-        drop(movie);
-        library.commit()?;
+        // for sub in movie.subtitles.iter_mut() {
+        //     println!("Checking subtitle {}", sub.path.());
+        //     let fp = fingerprint::file(root_path.join(&sub.path))?;
+
+        //     if fp != sub.fingerprint {
+        //         println!("{:?} => {:?}", sub.fingerprint, fp);
+        //         println!();
+        //         sub.fingerprint = fp;
+        //     }
+        // }
     }
-
-    library.commit()?;
 
     Ok(())
 }

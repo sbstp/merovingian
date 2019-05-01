@@ -53,7 +53,7 @@ impl Config {
     }
 
     pub fn library_path(&self) -> PathBuf {
-        self.root_path.join(".mero/library.bin.gz")
+        self.root_path.join(".mero/library.db")
     }
 
     pub fn index_path(&self) -> PathBuf {

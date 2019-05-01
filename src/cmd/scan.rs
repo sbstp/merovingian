@@ -7,7 +7,6 @@ use crate::error::Result;
 use crate::index::Index;
 use crate::local_storage::LocalStorage;
 use crate::scan::{walk, MovieFile, Scanner};
-use crate::service::TMDB;
 use crate::utils;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,7 +35,7 @@ impl Report {
 pub fn cmd_scan(
     import_path: impl AsRef<Path>,
     save_path: impl Into<Option<PathBuf>>,
-    config: Config,
+    _config: Config,
     index: &Index,
     local_storage: &LocalStorage,
 ) -> Result {
@@ -44,8 +43,7 @@ pub fn cmd_scan(
     println!("Scanning import path {}", import_path.display());
 
     let root = walk(import_path, &local_storage.ignored)?;
-    let tmdb = TMDB::new(config.tmdb_cache_path());
-    let mut scanner = Scanner::new(tmdb);
+    let mut scanner = Scanner::new();
 
     let mut report = Report::new(import_path);
     report.movies = scanner.scan_movies(&root, index)?;

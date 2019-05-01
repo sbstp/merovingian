@@ -1,29 +1,28 @@
 use crate::config::Config;
 use crate::error::Result;
-use crate::mero::Library;
+use crate::library::Library;
 
 pub fn cmd_sync(config: Config, library: &mut Library) -> Result {
     let root_path = config.root_path();
 
-    library.movies_mut().retain(|m| {
-        let exists = root_path.join(&m.path).exists();
+    for movie in library.all_movies()? {
+        let exists = root_path.join(&movie.file.path).exists();
         if !exists {
-            println!("Removing movie {}", m.path.display());
+            println!("Removing movie {}", movie.file.path);
+            library.delete_movie(&movie)?;
         }
-        exists
-    });
-
-    for movie in library.movies_mut().iter_mut() {
-        movie.subtitles.retain(|s| {
-            let exists = root_path.join(&s.path).exists();
-            if !exists {
-                println!("Removing subtitle {}", s.path.display());
-            }
-            exists
-        });
     }
 
-    library.commit()?;
+    for mut movie in library.all_movies()? {
+        library.load_subtitles(&mut movie)?;
+        for subtitle in &movie.subtitles {
+            let exists = root_path.join(&subtitle.file.path).exists();
+            if !exists {
+                println!("Removing subtitle {}", subtitle.file.path);
+                library.delete_subtitle(&movie.id, subtitle)?;
+            }
+        }
+    }
 
     Ok(())
 }

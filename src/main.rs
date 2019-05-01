@@ -5,8 +5,8 @@ mod config;
 mod error;
 mod index;
 mod io;
+mod library;
 mod local_storage;
-mod mero;
 mod scan;
 mod service;
 mod utils;
@@ -20,8 +20,8 @@ use structopt::StructOpt;
 use crate::config::Config;
 use crate::error::Result;
 use crate::index::Index;
+use crate::library::Library;
 use crate::local_storage::LocalStorage;
-use crate::mero::library::Library;
 
 const SRC_FILE_BASICS: &str = "title.basics.tsv.gz";
 const SRC_FILE_RATINGS: &str = "title.ratings.tsv.gz";
@@ -125,6 +125,8 @@ enum App {
     Init {
         #[structopt(parse(from_os_str))]
         directory: PathBuf,
+        #[structopt(short = "f", long = "force", help = "Overwrite existing config if it exists")]
+        force: bool,
     },
     #[structopt(name = "query", about = "Query the library for movies")]
     Query {
@@ -229,8 +231,8 @@ fn main() -> Result<()> {
         App::Images => {
             open_library(|config, mut library| cmd_images(config, &mut library))?;
         }
-        App::Init { directory } => {
-            cmd_init(directory)?;
+        App::Init { directory, force } => {
+            cmd_init(directory, force)?;
         }
         App::Query {
             title,

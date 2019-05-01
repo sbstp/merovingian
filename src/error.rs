@@ -15,6 +15,7 @@ pub enum Error {
     Json(serde_json::Error),
     ParseIntError(ParseIntError),
     Http(attohttpc::Error),
+    Sqlite(rusqlite::Error),
     SpawnError(String),
     Transfer {
         src: Option<io::Error>,
@@ -35,6 +36,7 @@ impl fmt::Display for Error {
             Json(e) => write!(w, "Error({})", e),
             ParseIntError(e) => write!(w, "Error({})", e),
             Http(e) => write!(w, "Error({})", e),
+            Sqlite(e) => write!(w, "Error({})", e),
             SpawnError(e) => write!(w, "Error(SpawnError({}))", e),
             Transfer { src, dst } => match (src, dst) {
                 (Some(e1), Some(e2)) => write!(w, "Error(Transfer(Both({}, {})))", e1, e2),
@@ -57,6 +59,7 @@ impl error::Error for Error {
             Json(e) => e.description(),
             ParseIntError(e) => e.description(),
             Http(e) => e.description(),
+            Sqlite(e) => e.description(),
             SpawnError(_) => "error spawning process",
             Transfer { src, dst } => match (src, dst) {
                 (Some(_), Some(_)) => "transfer error both source and destination",
@@ -77,6 +80,7 @@ impl error::Error for Error {
             Json(e) => e.source(),
             ParseIntError(e) => e.source(),
             Http(e) => e.source(),
+            Sqlite(e) => e.source(),
             SpawnError(_) => None,
             Transfer { src, dst } => match (src, dst) {
                 (Some(_), Some(_)) => None,
@@ -130,5 +134,11 @@ impl From<ParseIntError> for Error {
 impl From<attohttpc::Error> for Error {
     fn from(err: attohttpc::Error) -> Error {
         Error::Http(err)
+    }
+}
+
+impl From<rusqlite::Error> for Error {
+    fn from(err: rusqlite::Error) -> Error {
+        Error::Sqlite(err)
     }
 }
