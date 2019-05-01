@@ -15,7 +15,7 @@ lazy_static = "1"
 log = "0.4"
 libflate = "0.1"
 open = "1"
-rusqlite = { version = "0.17", features = ["bundled"] }
+rusqlite = { version = "0.18", features = ["bundled", "uuid"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.8"

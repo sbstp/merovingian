@@ -11,7 +11,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_file_fingerprint ON file(fingerprint);
 CREATE TABLE IF NOT EXISTS movie (
     id BLOB NOT NULL,
     file_id BLOB NOT NULL,
-    imdb_id BLOB NOT NULL,
+    imdb_id INTEGER NOT NULL,
     primary_title TEXT NOT NULL,
     original_title TEXT NOT NULL,
     year INTEGER NOT NULL,

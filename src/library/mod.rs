@@ -1,9 +1,12 @@
+mod sql_builder;
+
 use std::path::Path;
 
 use log::debug;
-use rusqlite::{params, Connection};
+use rusqlite::{named_params, params, Connection};
 use uuid::Uuid;
 
+use self::sql_builder::insert_into;
 use crate::error::Result;
 use crate::index::{Title, TitleId};
 use crate::io::Fingerprint;
@@ -89,10 +92,6 @@ pub struct Library {
     con: Connection,
 }
 
-fn uuid_from_bytes(bytes: Vec<u8>) -> Uuid {
-    uuid::Builder::from_slice(&bytes).expect("invalid blob").build()
-}
-
 impl Library {
     pub fn open(path: &Path) -> Result<Library> {
         let con = Connection::open(path)?;
@@ -124,13 +123,13 @@ impl Library {
 
         while let Some(row) = rows.next()? {
             movies.push(Movie {
-                id: uuid_from_bytes(row.get(0)?),
+                id: row.get(0)?,
                 imdb_id: TitleId::new(row.get(1)?),
                 primary_title: row.get(2)?,
                 original_title: row.get(3)?,
                 year: row.get(4)?,
                 file: File {
-                    id: uuid_from_bytes(row.get(5)?),
+                    id: row.get(5)?,
                     path: RelPath::from_string(row.get(6)?),
                     fingerprint: Fingerprint::from_string(row.get(7)?),
                 },
@@ -155,7 +154,7 @@ impl Library {
             movie.subtitles.push(Subtitle {
                 lang: row.get(0)?,
                 file: File {
-                    id: uuid_from_bytes(row.get(1)?),
+                    id: row.get(1)?,
                     path: RelPath::from_string(row.get(2)?),
                     fingerprint: Fingerprint::from_string(row.get(3)?),
                 },
@@ -178,7 +177,7 @@ impl Library {
             movie.images.push(Image {
                 kind: row.get(0)?,
                 file: File {
-                    id: uuid_from_bytes(row.get(1)?),
+                    id: row.get(1)?,
                     path: RelPath::from_string(row.get(2)?),
                     fingerprint: Fingerprint::from_string(row.get(3)?),
                 },
@@ -191,11 +190,17 @@ impl Library {
     pub fn save_file(&self, file: &File) -> Result<()> {
         debug!("saving file path={}", file.path);
 
-        self.con.execute(
-            "INSERT INTO file (id, path, fingerprint) VALUES (?, ?, ?)
-             ON CONFLICT(id) DO UPDATE SET (path, fingerprint) = (excluded.path, excluded.fingerprint)",
-            params![&file.id.as_bytes()[..], file.path.as_str(), file.fingerprint.as_str()],
+        self.con.execute_named(
+            &insert_into("file", &["id", "path", "fingerprint"])
+                .on_conflict_update(&["id"])
+                .to_string(),
+            named_params! {
+                ":id": file.id,
+                ":path": file.path.as_str(),
+                ":fingerprint": file.fingerprint.as_str(),
+            },
         )?;
+
         Ok(())
     }
 
@@ -203,15 +208,18 @@ impl Library {
         debug!("saving subtitle lang={}", subtitle.lang);
 
         self.save_file(&subtitle.file)?;
-        self.con.execute(
-            "INSERT INTO subtitle (movie_id, file_id, lang) VALUES (?, ?, ?)
-                 ON CONFLICT(movie_id, file_id) DO UPDATE SET lang = excluded.lang",
-            params![
-                &movie_id.as_bytes()[..],
-                &subtitle.file.id.as_bytes()[..],
-                subtitle.lang
-            ],
+
+        self.con.execute_named(
+            &insert_into("subtitle", &["movie_id", "file_id", "lang"])
+                .on_conflict_update(&["movie_id", "file_id"])
+                .to_string(),
+            named_params! {
+                ":movie_id": movie_id,
+                ":file_id": subtitle.file.id,
+                ":lang": subtitle.lang,
+            },
         )?;
+
         Ok(())
     }
 
@@ -219,11 +227,18 @@ impl Library {
         debug!("saving image kind={}", image.kind);
 
         self.save_file(&image.file)?;
-        self.con.execute(
-            "INSERT INTO image (movie_id, file_id, kind) VALUES (?, ?, ?)
-                 ON CONFLICT (movie_id, file_id) DO UPDATE SET kind = excluded.kind",
-            params![&movie_id.as_bytes()[..], &image.file.id.as_bytes()[..], image.kind],
+
+        self.con.execute_named(
+            &insert_into("image", &["movie_id", "file_id", "kind"])
+                .on_conflict_update(&["movie_id", "file_id"])
+                .to_string(),
+            named_params! {
+                ":movie_id": movie_id,
+                ":file_id": image.file.id,
+                ":kind": image.kind,
+            },
         )?;
+
         Ok(())
     }
 
@@ -231,18 +246,22 @@ impl Library {
         debug!("saving movie title={}", movie.primary_title);
 
         self.save_file(&movie.file)?;
-        self.con.execute(
-            "INSERT INTO movie (id, file_id, imdb_id, primary_title, original_title, year) VALUES (?, ?, ?, ?, ?, ?)
-             ON CONFLICT(id) DO UPDATE SET (file_id, imdb_id, primary_title, original_title, year) =
-               (excluded.file_id, excluded.imdb_id, excluded.primary_title, excluded.original_title, excluded.year)",
-            params![
-                &movie.id.as_bytes()[..],
-                &movie.file.id.as_bytes()[..],
-                movie.imdb_id.0,
-                movie.primary_title,
-                movie.original_title,
-                movie.year
-            ],
+
+        self.con.execute_named(
+            &insert_into(
+                "movie",
+                &["id", "file_id", "imdb_id", "primary_title", "original_title", "year"],
+            )
+            .on_conflict_update(&["id"])
+            .to_string(),
+            named_params! {
+                ":id": movie.id,
+                ":file_id": movie.file.id,
+                ":imdb_id": movie.imdb_id.0,
+                ":primary_title": movie.primary_title,
+                ":original_title": movie.original_title,
+                ":year": movie.year,
+            },
         )?;
 
         for subtitle in &movie.subtitles {
@@ -259,8 +278,7 @@ impl Library {
     pub fn delete_file(&self, file: &File) -> Result<()> {
         debug!("deleting file path={}", file.path);
 
-        self.con
-            .execute("DELETE FROM file WHERE id = ?", params![&file.id.as_bytes()[..]])?;
+        self.con.execute("DELETE FROM file WHERE id = ?", params![file.id])?;
         Ok(())
     }
 
@@ -269,7 +287,7 @@ impl Library {
 
         self.con.execute(
             "DELETE FROM subtitle WHERE movie_id = ? AND file_id = ?",
-            params![&movie_id.as_bytes()[..], &subtitle.file.id.as_bytes()[..]],
+            params![movie_id, subtitle.file.id],
         )?;
         self.delete_file(&subtitle.file)?;
         Ok(())
@@ -280,7 +298,7 @@ impl Library {
 
         self.con.execute(
             "DELETE FROM image WHERE movie_id = ? AND file_id = ?",
-            params![&movie_id.as_bytes()[..], &image.file.id.as_bytes()[..]],
+            params![movie_id, image.file.id],
         )?;
         self.delete_file(&image.file)?;
         Ok(())
@@ -297,8 +315,7 @@ impl Library {
             self.delete_image(&movie.id, image)?;
         }
 
-        self.con
-            .execute("DELETE FROM movie WHERE id = ?", params![&movie.id.as_bytes()[..]])?;
+        self.con.execute("DELETE FROM movie WHERE id = ?", params![movie.id])?;
         self.delete_file(&movie.file)?;
         Ok(())
     }
