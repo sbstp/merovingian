@@ -11,6 +11,8 @@ pub fn cmd_images(config: Config, library: &mut Library) -> Result {
     let mut tmdb = TMDB::new(config.tmdb_cache_path());
 
     for mut movie in library.all_movies()? {
+        library.load_images(&mut movie)?;
+
         if movie.images.len() == 0 {
             println!("Downloading images for {}", movie.file.path);
 
